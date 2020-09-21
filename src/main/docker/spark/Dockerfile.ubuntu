@@ -1,0 +1,38 @@
+FROM ubuntu:16.04
+ARG SPARK_VERSION=2.4.5
+ARG HADOOP_VERSION=2.7
+
+ENV LANG=en_US.utf8
+
+RUN apt-get update && \
+    apt-get install wget  -y && \
+    ln -s /lib/libc.musl-x86_64.so.1 /lib/ld-linux-x86-64.so.2 && \
+    set -ex && \
+    mkdir -p /opt/spark && \
+    touch /opt/spark/RELEASE && \
+    rm /bin/sh && \
+    ln -sv /bin/bash /bin/sh && \
+    chgrp root /etc/passwd && chmod ug+rw /etc/passwd
+
+# openJDK 8
+RUN apt-get install -y openjdk-8-jdk-headless && \
+	apt-get clean && \
+	rm -rf /var/lib/apt/lists/* && \
+	rm -rf /var/cache/oracle-jdk8-installer;
+
+RUN wget https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz && \
+    tar -xvzf spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz && \
+    cp -R /spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}/jars /opt/spark/jars && \
+    cp -R /spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}/bin /opt/spark/bin && \
+    cp -R /spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}/sbin /opt/spark/sbin && \
+    cp -R /spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}/kubernetes/dockerfiles/spark/entrypoint.sh /opt/ && \
+    rm -rf /spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION} && \
+    rm spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz
+
+ENV SPARK_HOME /opt/spark
+ENV JAVA_HOME /usr/lib/jvm/java-8-openjdk-amd64/
+
+RUN groupadd --gid 1000 spark && \
+ useradd --uid 1000 --gid 1000 -ms /bin/bash spark && \
+ mkdir -p /opt/spark/work-dir && \
+ chown spark:spark /opt/spark/work-dir

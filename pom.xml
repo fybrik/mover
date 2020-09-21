@@ -1,0 +1,572 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>com.ibm.datamesh</groupId>
+	<artifactId>mover</artifactId>
+	<version>1.0-SNAPSHOT</version>
+
+	<licenses>
+		<license>
+			<name>Apache License, Version 2.0</name>
+			<url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+		</license>
+	</licenses>
+
+	<scm>
+		<connection>scm:git:git://github.com/IBM/the-mesh-for-data-mover.git</connection>
+		<developerConnection>scm:git@github.com:IBM/the-mesh-for-data-mover.git</developerConnection>
+		<url>https://github.com/IBM/the-mesh-for-data-mover</url>
+		<tag>HEAD</tag>
+	</scm>
+
+	<properties>
+		<scala.compat.version>2.12</scala.compat.version>
+		<scala.minor.version>10</scala.minor.version>
+		<scala.version>${scala.compat.version}.${scala.minor.version}</scala.version>
+		<slf4j.version>1.7.28</slf4j.version>
+		<kafka.version>2.2.1</kafka.version>
+		<confluent.version>5.2.2</confluent.version>
+		<abris.version>3.2.0</abris.version>
+		<spark.version>2.4.6</spark.version>
+		<hadoop.version>2.7.3</hadoop.version>
+		<stocator.version>1.0.35</stocator.version>
+		<avro.version>1.9.2</avro.version>
+		<java.version>1.8</java.version>
+		<kubernets.client>4.6.0</kubernets.client>
+
+		<base.image>docker://spark-base:${spark.version}</base.image>
+		<docker.repository>${project.artifactId}</docker.repository>
+		<image.label>${project.version}</image.label>
+
+		<skipTests>false</skipTests>
+		<useZinc>false</useZinc>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<sparkScope>provided</sparkScope>
+	</properties>
+
+	<profiles>
+		<profile>
+			<id>dev</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
+			<properties>
+				<base.image>docker://spark-base:${spark.version}</base.image>
+				<docker.repository>${project.artifactId}</docker.repository>
+			</properties>
+		</profile>
+		<profile>
+			<id>local-registry</id>
+			<properties>
+				<base.image>docker://localhost:5000/datamesh/spark-base:${spark.version}</base.image>
+				<docker.repository>localhost:5000/datamesh/${project.artifactId}</docker.repository>
+				<image.label>latest</image.label>
+			</properties>
+		</profile>
+		<profile>
+			<id>tekton-minikube</id>
+			<properties>
+				<base.image>registry.kube-system.svc.cluster.local:80/spark-base:2.4.5</base.image>
+				<docker.repository>registry.kube-system.svc.cluster.local:80/${project.artifactId}</docker.repository>
+			</properties>
+		</profile>
+		<profile>
+			<id>tekton-openshift</id>
+			<properties>
+				<base.image>docker://image-registry.openshift-image-registry.svc:5000/mover/spark-base:2.4.5</base.image>
+				<docker.repository>image-registry.openshift-image-registry.svc:5000/mover/${project.artifactId}</docker.repository>
+			</properties>
+		</profile>
+		<profile>
+			<id>openshift</id>
+			<properties>
+				<base.image>namespace/spark-base:${spark.version}</base.image>
+				<docker.repository>namespace/${project.artifactId}</docker.repository>
+			</properties>
+		</profile>
+		<profile>
+			<id>local-to-ibm-cloud</id>
+			<properties>
+				<base.image>docker://uk.icr.io/datamesh/spark-base:${spark.version}</base.image>
+				<docker.repository>uk.icr.io/datamesh/${project.artifactId}</docker.repository>
+				<image.label>ffr</image.label>
+			</properties>
+		</profile>
+
+		<profile>
+			<id>spark3</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
+			<properties>
+				<spark.version>3.0.0</spark.version>
+				<java.version>11</java.version>
+				<kubernets.client>4.9.2</kubernets.client>
+			</properties>
+		</profile>
+	</profiles>
+
+	<repositories>
+		<repository>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+			<id>central</id>
+			<url>https://repo1.maven.org/maven2</url>
+		</repository>
+		<repository>
+			<id>confluent</id>
+			<name>Confluent</name>
+			<url>https://packages.confluent.io/maven/</url>
+		</repository>
+	</repositories>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>${slf4j.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-log4j12</artifactId>
+			<version>${slf4j.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.json</groupId>
+			<artifactId>json</artifactId>
+			<version>20190722</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.ibm.cos</groupId>
+			<artifactId>ibm-cos-java-sdk</artifactId>
+			<version>2.5.3</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.typesafe</groupId>
+			<artifactId>config</artifactId>
+			<version>1.4.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.scala-lang</groupId>
+			<artifactId>scala-library</artifactId>
+			<version>${scala.version}</version>
+			<scope>${sparkScope}</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.spark</groupId>
+			<artifactId>spark-sql_${scala.compat.version}</artifactId>
+			<version>${spark.version}</version>
+			<scope>${sparkScope}</scope>
+		</dependency>
+
+		<!-- https://mvnrepository.com/artifact/com.ibm.stocator/stocator -->
+		<!-- The stocator plugin pulls in all of com.amazonaws:aws-java-sdk which is way too much.  -->
+		<!-- This dependency excludes the redundant dependencies and adds the relevant ones afterwards-->
+		<dependency>
+			<groupId>com.ibm.stocator</groupId>
+			<artifactId>stocator</artifactId>
+			<version>${stocator.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.amazonaws</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>com.amazonaws</groupId>
+			<artifactId>aws-java-sdk-core</artifactId>
+			<version>1.11.589</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.amazonaws</groupId>
+			<artifactId>aws-java-sdk-s3</artifactId>
+			<version>1.11.589</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-common</artifactId>
+			<version>${hadoop.version}</version>
+			<exclusions>
+				<exclusion><!-- Exclude avro 1.7.x from hadoop so that avro 1.8.x from Spark is taken -->
+					<groupId>org.apache.avro</groupId>
+					<artifactId>avro</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-mapreduce-client-core</artifactId>
+			<version>${hadoop.version}</version>
+			<exclusions>
+				<exclusion><!-- Exclude avro 1.7.x from hadoop so that avro 1.8.x from Spark is taken -->
+					<groupId>org.apache.avro</groupId>
+					<artifactId>avro</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.spark</groupId>
+			<artifactId>spark-sql-kafka-0-10_${scala.compat.version}</artifactId>
+			<version>${spark.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.kafka</groupId>
+			<artifactId>kafka-clients</artifactId>
+			<version>${kafka.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>io.confluent</groupId>
+			<artifactId>kafka-schema-registry</artifactId>
+			<version>${confluent.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>io.confluent</groupId>
+			<artifactId>kafka-rest</artifactId>
+			<version>${confluent.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.avro</groupId>
+			<artifactId>avro</artifactId>
+			<version>${avro.version}</version>
+		</dependency>
+
+		<!-- CAREFUL! This messy dependency includes a log4j.properties file! -->
+		<dependency> <!-- ABRiS dependency -->
+			<groupId>za.co.absa</groupId>
+			<artifactId>abris_${scala.compat.version}</artifactId>
+			<version>${abris.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>io.fabric8</groupId>
+			<artifactId>kubernetes-client</artifactId>
+			<version>${kubernets.client}</version>
+			<scope>${sparkScope}</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.scalatest</groupId>
+			<artifactId>scalatest_2.12</artifactId>
+			<version>3.1.0</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.squareup.okhttp3</groupId>
+			<artifactId>mockwebserver</artifactId>
+			<version>3.14.7</version>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.8.0</version>
+				<configuration>
+					<source>${java.version}</source>
+					<target>${java.version}</target>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<version>3.2.0</version>
+				<configuration>
+					<forceCreation>true</forceCreation>
+					<archive>
+						<manifestEntries>
+							<Build-Time>${maven.build.timestamp}</Build-Time>
+						</manifestEntries>
+					</archive>
+				</configuration>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-deploy-plugin</artifactId>
+				<version>2.8.2</version>
+				<executions>
+					<execution>
+						<id>default-deploy</id>
+						<phase>none</phase>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>com.google.cloud.tools</groupId>
+				<artifactId>jib-maven-plugin</artifactId>
+				<version>2.5.2</version>
+				<dependencies>
+					<dependency>
+						<groupId>com.google.cloud.tools</groupId>
+						<artifactId>jib-layer-filter-extension-maven</artifactId>
+						<version>0.1.0</version>
+					</dependency>
+				</dependencies>
+				<configuration>
+					<from>
+						<image>${base.image}</image>
+					</from>
+					<to>
+						<image>${docker.repository}:${image.label}</image>
+					</to>
+					<containerizingMode>packaged</containerizingMode>
+					<container>
+						<mainClass>com.ibm.datamesh.mover.Transfer</mainClass>
+						<entrypoint>INHERIT</entrypoint>
+						<environment>
+							<MAIN_JAR>${project.artifactId}-${project.version}.jar</MAIN_JAR>
+							<SPARK_DRIVER_MEMORY>2g</SPARK_DRIVER_MEMORY>
+							<SPARK_CONTAINER_PULL_POLICY>Always</SPARK_CONTAINER_PULL_POLICY>
+							<HOME>/opt/spark/work-dir</HOME>
+						</environment>
+						<extraClasspath>/opt/spark/jars/*</extraClasspath>
+					</container>
+					<allowInsecureRegistries>true</allowInsecureRegistries>
+					<extraDirectories>
+						<paths>${project.build.directory}/extradir</paths>
+						<permissions>
+							<permission>
+								<file>/batch</file>
+								<mode>755</mode> <!-- Read/write/execute for owner, read/execute for group/other -->
+							</permission>
+							<permission>
+								<file>/stream</file>
+								<mode>755</mode> <!-- Read/write/execute for owner, read/execute for group/other -->
+							</permission>
+							<permission>
+								<file>/mover</file>
+								<mode>755</mode> <!-- Read/write/execute for owner, read/execute for group/other -->
+							</permission>
+							<permission>
+								<file>/finalizer</file>
+								<mode>755</mode> <!-- Read/write/execute for owner, read/execute for group/other -->
+							</permission>
+							<permission>
+								<file>/driver-entrypoint.sh</file>
+								<mode>755</mode> <!-- Read/write/execute for owner, read/execute for group/other -->
+							</permission>
+							<permission>
+								<file>/streaming-entrypoint.sh</file>
+								<mode>755</mode> <!-- Read/write/execute for owner, read/execute for group/other -->
+							</permission>
+						</permissions>
+					</extraDirectories>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>deploy</phase>
+						<goals>
+							<goal>build</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<artifactId>maven-resources-plugin</artifactId>
+				<version>3.1.0</version>
+				<executions>
+					<execution>
+						<id>copy-entrypoints</id>
+						<!-- here the phase you need -->
+						<phase>validate</phase>
+						<goals>
+							<goal>copy-resources</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.directory}/extradir</outputDirectory>
+							<resources>
+								<resource>
+									<directory>src/main/docker</directory>
+									<filtering>true</filtering>
+									<includes>
+										<include>batch</include>
+										<include>stream</include>
+										<include>mover</include>
+										<include>finalizer</include>
+										<include>driver-entrypoint.sh</include>
+										<include>streaming-entrypoint.sh</include>
+									</includes>
+									<excludes>
+										<exclude>Dockerfile</exclude>
+										<exclude>spark*</exclude>
+									</excludes>
+								</resource>
+							</resources>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>net.alchim31.maven</groupId>
+				<artifactId>scala-maven-plugin</artifactId>
+				<version>3.4.6</version>
+				<executions>
+					<execution>
+						<id>add-source</id>
+						<goals>
+							<goal>add-source</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>scala-compile-first</id>
+						<goals>
+							<goal>compile</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>scala-test-compile-first</id>
+						<goals>
+							<goal>testCompile</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<scalaVersion>${scala.version}</scalaVersion>
+					<scalaCompatVersion>${scala.compat.version}</scalaCompatVersion>
+					<recompileMode>incremental</recompileMode>
+					<useZincServer>${useZinc}</useZincServer>
+					<args>
+						<arg>-unchecked</arg>
+						<arg>-deprecation</arg>
+						<arg>-feature</arg>
+						<arg>-Yno-adapted-args</arg>
+<!--						<arg>-target:jvm-${java.version}</arg>-->
+<!--						<arg>-Xlog-implicits</arg>-->
+					</args>
+					<jvmArgs>
+						<jvmArg>-Xms1024m</jvmArg>
+						<jvmArg>-Xmx2048m</jvmArg>
+						<jvmArg>-Xss256m</jvmArg>
+					</jvmArgs>
+					<javacArgs>
+						<javacArg>-source</javacArg>
+						<javacArg>${java.version}</javacArg>
+						<javacArg>-target</javacArg>
+						<javacArg>${java.version}</javacArg>
+						<javacArg>-Xlint:all,-serial,-path</javacArg>
+					</javacArgs>
+					<excludes>
+						<exclude>**/*.java</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
+
+			<!-- disable surefire -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>2.20</version>
+				<configuration>
+					<skipTests>true</skipTests>
+				</configuration>
+			</plugin>
+			<!-- enable scalatest -->
+
+			<plugin>
+				<groupId>org.scalatest</groupId>
+				<artifactId>scalatest-maven-plugin</artifactId>
+				<version>2.0.0</version>
+				<configuration>
+					<reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
+					<junitxml>.</junitxml>
+					<filereports>TestSuite.txt</filereports>
+<!--					<testFailureIgnore>true</testFailureIgnore>-->
+					<stderr/>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>test</phase>
+						<goals>
+							<goal>test</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>com.mycila</groupId>
+				<artifactId>license-maven-plugin</artifactId>
+				<version>4.0.rc1</version>
+				<configuration>
+					<header>src/main/license/header.txt</header>
+					<excludes>
+						<exclude>**/README</exclude>
+					</excludes>
+					<properties>
+						<owner>IBM Corporation</owner>
+						<years>2020</years>
+					</properties>
+					<mapping>
+						<scala>SCALA_STYLE</scala>
+					</mapping>
+					<includes>
+						<include>src/*/scala/**/*.scala</include>
+						<include>src/*/docker/**</include>
+					</includes>
+				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>format</goal>
+						</goals>
+						<phase>process-sources</phase>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>com.github.tashoyan</groupId>
+				<artifactId>scalariform-maven-plugin</artifactId>
+				<version>0.2.3</version>
+				<configuration>
+					<alignSingleLineCaseStatements>true</alignSingleLineCaseStatements>
+					<firstArgumentOnNewline>Force</firstArgumentOnNewline>
+					<firstParameterOnNewline>Force</firstParameterOnNewline>
+					<allowParamGroupsOnNewlines>true</allowParamGroupsOnNewlines>
+					<danglingCloseParenthesis>Force</danglingCloseParenthesis>
+					<doubleIndentConstructorArguments>true</doubleIndentConstructorArguments>
+					<doubleIndentMethodDeclaration>true</doubleIndentMethodDeclaration>
+					<newlineAtEndOfFile>false</newlineAtEndOfFile>
+					<placeScaladocAsterisksBeneathSecondAsterisk>true</placeScaladocAsterisksBeneathSecondAsterisk>
+					<singleCasePatternOnNewline>false</singleCasePatternOnNewline>
+					<spacesAroundMultiImports>false</spacesAroundMultiImports>
+				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>format</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+</project>

@@ -1,0 +1,15 @@
+*.class
+*.log
+target
+.idea
+*.iml
+/.zinc/
+/.m2/
+/.config/
+/.cache/
+/src/main/docker/jsqsh/
+/src/main/resources/cos-to-cos-encryption.conf
+/src/main/resources/cos-to-cos-encryption-kp.conf
+/src/main/resources/db2-to-db2.conf
+/src/main/resources/db2-to-cos.conf
+/src/main/resources/db2-bindata.conf
