@@ -27,7 +27,7 @@
 		<kafka.version>2.2.1</kafka.version>
 		<confluent.version>5.2.2</confluent.version>
 		<abris.version>3.2.0</abris.version>
-		<spark.version>2.4.6</spark.version>
+		<spark.version>2.4.7</spark.version>
 		<hadoop.version>2.7.3</hadoop.version>
 		<stocator.version>1.0.35</stocator.version>
 		<avro.version>1.9.2</avro.version>
@@ -89,15 +89,20 @@
 			<properties>
 				<base.image>docker://uk.icr.io/datamesh/spark-base:${spark.version}</base.image>
 				<docker.repository>uk.icr.io/datamesh/${project.artifactId}</docker.repository>
-				<image.label>ffr</image.label>
+				<image.label>latest</image.label>
+			</properties>
+		</profile>
+		<profile>
+			<id>local-to-ghcr</id>
+			<properties>
+				<base.image>docker://ghcr.io/the-mesh-for-data/spark-base:${spark.version}</base.image>
+				<docker.repository>ghcr.io/the-mesh-for-data/${project.artifactId}</docker.repository>
+				<image.label>latest</image.label>
 			</properties>
 		</profile>
 
 		<profile>
 			<id>spark3</id>
-			<activation>
-				<activeByDefault>true</activeByDefault>
-			</activation>
 			<properties>
 				<spark.version>3.0.0</spark.version>
 				<java.version>11</java.version>

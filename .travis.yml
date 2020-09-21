@@ -45,9 +45,9 @@ jobs:
         - docker load -i docker_images/images.tar || true
         - docker images
       script:
-        - docker build -t uk.icr.io/datamesh/spark-base:2.4.6 -f src/main/docker/spark/Dockerfile src/main/docker/spark
+        - docker build -t ghcr.io/the-mesh-for-data/spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark
         - docker images
-        - mvn package jib:dockerBuild -DskipTests -Plocal-to-ibm-cloud
+        - mvn package jib:dockerBuild -DskipTests -Plocal-to-ghcr
       before_cache:
         - docker save -o docker_images/images.tar $(docker images -a -q)
       before_deploy:
@@ -55,7 +55,7 @@ jobs:
       deploy:
         skip_cleanup: true
         provider: script
-        script: docker push uk.icr.io/datamesh/mover:latest
+        script: docker push ghcr.io/the-mesh-for-data/mover:latest
         on:
           condition: $TRAVIS_PULL_REQUEST = false
           branch: master
