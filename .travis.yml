@@ -48,6 +48,8 @@ jobs:
         - docker build -t ghcr.io/the-mesh-for-data/spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark
         - docker images
         - mvn package jib:dockerBuild -DskipTests -Plocal-to-ghcr
+        - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin "$DOCKER_HOSTNAME"
+        - docker push ghcr.io/the-mesh-for-data/mover:latest
       before_cache:
         - docker save -o docker_images/images.tar $(docker images -a -q)
       before_deploy:
@@ -56,6 +58,9 @@ jobs:
         skip_cleanup: true
         provider: script
         script: docker push ghcr.io/the-mesh-for-data/mover:latest
+        on:
+          condition: $TRAVIS_PULL_REQUEST = false
+          branch: master
 
 notifications:
   email: false
