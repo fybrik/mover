@@ -56,9 +56,6 @@ jobs:
         skip_cleanup: true
         provider: script
         script: docker push ghcr.io/the-mesh-for-data/mover:latest
-        on:
-          condition: $TRAVIS_PULL_REQUEST = false
-          branch: master
 
 notifications:
   email: false
