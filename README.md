@@ -5,7 +5,7 @@
 This is a collection of movement components. They are mostly used in [the-mesh-for-data](https://github.com/IBM/the-mesh-for-data).
 
 It copies data between combinations of COS and Kafka and applies transformations.
-It's build with extendability in mind so that custom data stores or transformations can be used.
+It's built with extendability in mind so that custom data stores or transformations can be used.
 A description of data flows and data types can be found in the [mover matrix](Mover-matrix.md).
 
 ## Using the latest image
@@ -22,7 +22,7 @@ The Spark base image can be build locally with the following command:
 
 ```docker build -t ghcr.io/the-mesh-for-data/spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark```
 
-After the base image is build the mover image can be build using:
+After the base image is built the mover image can be build using:
 ```mvn package jib:dockerBuild -DskipTests -Plocal-to-ghcr```
 
 This will create the image locally. If a different image name and tag is preferred it can be specified with `-Djib.to.image=my_image:tag`.
