@@ -20,10 +20,10 @@ The latest image can be found at: `ghcr.io/the-mesh-for-data/mover:latest`
 The following notes sketch out how to manually build the images.
 The Spark base image can be build locally with the following command:
 
-```docker build -t ghcr.io/the-mesh-for-data/spark-base:2.4.6 -f src/main/docker/spark/Dockerfile src/main/docker/spark```
+```docker build -t ghcr.io/the-mesh-for-data/spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark```
 
 After the base image is build the mover image can be build using:
-```mvn package jib:dockerBuild -DskipTests -Plocal-to-ibm-cloud```
+```mvn package jib:dockerBuild -DskipTests -Plocal-to-ghcr```
 
 This will create the image locally. If a different image name and tag is preferred it can be specified with `-Djib.to.image=my_image:tag`.
 
@@ -31,7 +31,7 @@ Afterwards it can be pushed to a registry using the `docker push` command.
 
 ### Local building for use with local kind registry
 
-1. ```docker build -t localhost:5000/the-mesh-for-data/spark-base:2.4.6 -f src/main/docker/spark/Dockerfile src/main/docker/spark```
+1. ```docker build -t localhost:5000/the-mesh-for-data/spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark```
 2. ```mvn package jib:dockerBuild -DskipTests -Plocal-registry```
 
 ### Setting up the registry in RedHat CodeReady Containers
@@ -69,11 +69,11 @@ registry is available for downloading images.
 3. Run example pod `kubectl apply -f src/main/resources/k8s-example.yaml`
 
 ### Building the Spark base image
-The base image for the maven jib plugin is configured to be docker://spark-base:2.4.5.
+The base image for the maven jib plugin is configured to be docker://spark-base:2.4.7.
 So this image has to be available in the local docker daemon.
 
 1. Go to spark directory `cd src/main/docker/spark`
-2. Build base image `docker build -t spark-base:2.4.5 .`
+2. Build base image `docker build -t spark-base:2.4.7 .`
 
 ### Troubleshooting
 When the job is not starting or job shows permission errors like the following or errors about using uid ranges:
