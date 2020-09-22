@@ -2,7 +2,7 @@
 
 # Mover
 
-This is a collection of movement components.
+This is a collection of movement components. They are mostly used in [the-mesh-for-data](https://github.com/IBM/the-mesh-for-data).
 
 It copies data between combinations of COS and Kafka and applies transformations.
 It's build with extendability in mind so that custom data stores or transformations can be used.
@@ -29,9 +29,9 @@ This will create the image locally. If a different image name and tag is preferr
 
 Afterwards it can be pushed to a registry using the `docker push` command.
 
-### Local building for use with local datamesh in kind registry
+### Local building for use with local kind registry
 
-1. ```docker build -t localhost:5000/datamesh/spark-base:2.4.6 -f src/main/docker/spark/Dockerfile src/main/docker/spark```
+1. ```docker build -t localhost:5000/the-mesh-for-data/spark-base:2.4.6 -f src/main/docker/spark/Dockerfile src/main/docker/spark```
 2. ```mvn package jib:dockerBuild -DskipTests -Plocal-registry```
 
 ### Setting up the registry in RedHat CodeReady Containers
