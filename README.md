@@ -64,9 +64,12 @@ registry is available for downloading images.
 
 ### Running locally
 
-1. Compile `mvn package`
-2. Build container `mvn jib:dockerBuild`
-3. Run example pod `kubectl apply -f src/main/resources/k8s-example.yaml`
+The easiest way to test the image in a local K8s cluster is to install controller of [the-mesh-for-data](https://github.com/IBM/the-mesh-for-data)
+and run one of the [examples](https://github.com/IBM/the-mesh-for-data/blob/master/manager/config/samples/motion_v1_batchtransfer.yaml) in against a configured
+COS/S3 bucket. Instead of the `vaultPath` `accessKey` and `secretKey` can be configured directly for development and testing.
+
+If K8s should not be used a local app run can be done via the AppTest suite. A correct config file has to be put in a path. An example template configuration
+can be found [here](src/main/resources/test.conf.template)  
 
 ### Building the Spark base image
 The base image for the maven jib plugin is configured to be docker://spark-base:2.4.7.
