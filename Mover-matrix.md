@@ -13,7 +13,7 @@ The first configurable parameter is the data flow type which can be:
 - **stream**  Stream is an continuously running job that interprets event to update the taget
 
 Tow data types are supported:
-- **log data**: A plain struct of data. This structured data with no special interpretation. (e.g. rows of a CSV file or the values of a [KStream](https://docs.confluent.io/current/streams/index.html)
+- **log data**: This is structured data with no special interpretation. (e.g. rows of a CSV file or the values of a [KStream](https://docs.confluent.io/current/streams/index.html)
 - **change data**: This represents data with a representation of a changing data set. It requires a `key` and a `value` struct being present. This is mostly known
 from e.g. a [KTable](https://www.confluent.io/blog/kafka-streams-tables-part-1-event-streaming/)  that can represent a CDC stream. If other data sources than Kafka are used a `key` and a `value` field could be present or other mappings could be defined to 
 represent data of type *change data*.
