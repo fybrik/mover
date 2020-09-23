@@ -12,7 +12,7 @@ The first configurable parameter is the data flow type which can be:
 - **batch** Batch is a one-of-transfer that copies a snapshot of the data from the source. 
 - **stream**  Stream is an continuously running job that interprets event to update the taget
 
-Tow data types are supported:
+Two data types are supported:
 - **log data**: This is structured data with no special interpretation. (e.g. rows of a CSV file or the values of a [KStream](https://docs.confluent.io/current/streams/index.html)
 - **change data**: This represents data with a representation of a changing data set. It requires a `key` and a `value` struct being present. This is mostly known
 from e.g. a [KTable](https://www.confluent.io/blog/kafka-streams-tables-part-1-event-streaming/)  that can represent a CDC stream. If other data sources than Kafka are used a `key` and a `value` field could be present or other mappings could be defined to 
@@ -42,6 +42,7 @@ The last parameter is the write operation. Here we have the following:
 | Overwrite(log data) | doesn't make sense as stream => use batch | doesn't make sense as stream => use batch |
 | Append(log data) | Read log data and write log data in an append mode to a target (examples: write logs from Kafka to COS as archive, or read log files from COS) | doesn't make sense |
 | Update(log data) | doesn't make sense as there is no key | "Confluent" use case: read verbatim (key / value) and interpret during write: insert, update and delete records as needed in the target. Requires that target supports these operations. | 
+|---|---|---| 
 | Overwrite(change data) | doesn't make sense as stream => use batch | doesn't make sense as stream => use batch |
 | Append(change data) | doesn't make sense. Can't go from log data to change data | Read verbatim (key / value) and write verbatim (key /value) Use case: Read CDC stream, apply transformations (anonymizations, redactions) and write CDC stream out to target. If no transformations are applied this is like MirrorMaker |
 | Update(change data) | Cannot be supported without primary key. Not planned for now. | doesn't make sense | 
