@@ -1,18 +1,19 @@
 ## Mover matrix
 
-There are different types of data and how the mover could interpret these depending on the source and target and write operations.
+Different types of data can be moved in different ways  e.g. in stream or batch mode.
+How the mover interpret these different modes depends on the source to be read from and the target to be written to.
 To facilitate this the following describes a matrix of possible operations and if they are supported or not. The source/target of the data
 (thus e.g. Kafka or COS) plays a huge role over what default assumptions about the below described parameters are for a given system but in 
 general different data types, write operations etc are thinkable for multiple systems. In the end the system specific implementation has to 
 decide which cases are supported. The matrix below tries to be as general as possible.
 
-The first configurable parameter is the data flow type which can be *batch* or *stream*. Batch is a one of transfer that transfers
+The first configurable parameter is the data flow type which can be *batch* or *stream*. Batch is a one-of-transfer that copies
 the full amount of data from the source. Stream is an continuously incrementally running job.
 
 As data types two types are supported:
-- **log data**: A plain struct of data. This structured data with no special interpretation. (e.g. rows of a CSV file or the values of a KStream)
+- **log data**: A plain struct of data. This structured data with no special interpretation. (e.g. rows of a CSV file or the values of a (KStream)[https://docs.confluent.io/current/streams/index.html])
 - **change data**: This represents data with a representation of a changing data set. It requires a `key` and a `value` struct being present. This is mostly known
-from e.g. a KTable that can represent a CDC stream. If other data sources than Kafka are used a `key` and a `value` field could be present or other mappings could be defined to 
+from e.g. a (KTable)[https://www.confluent.io/blog/kafka-streams-tables-part-1-event-streaming/]  that can represent a CDC stream. If other data sources than Kafka are used a `key` and a `value` field could be present or other mappings could be defined to 
 represent data of type *change data*.
 
 Data types can be defined for source and for target data.
