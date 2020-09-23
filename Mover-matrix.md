@@ -27,6 +27,7 @@ The last parameter is the write operation. Here we have the following:
 
 #### Matrix for batch data flow
 
+The meaning of the batch data flow is dependent on the the source data type and the write operation. It is *NOT* dependent on the target data type.
 | **Write operation** | **Source data type: Log data (KStream)** | **Source data type: Change data (KTable)** |
 |---|---|---| 
 | Overwrite | Copy of log data (stored as normal rows). Overwrite any existing table/object of the same name. | Data is interpreted as changes and used to "compute" a table. Snapshot of data (stored as normal rows), will overwrite any existing table of the same name. |
@@ -34,14 +35,17 @@ The last parameter is the write operation. Here we have the following:
 | Update | doesn't make sense as there is no key | Read the data verbatim (no interpretation) and update the target data by applying the changes to the existing target table.  |
 
 
+The meaning of the stream data flow is dependent on the the source data type and the write operation *AND* is also dependent on the target data type.
 
 #### Matrix for stream data flow
 
-| **Write operation (target data type)** | **Source data type: Log data (KStream)** | **Source data type: Change data (KTable)** |
+| **Write operation (into log data)** | **Source data type: Log data (KStream)** | **Source data type: Change data (KTable)** |
 |---|---|---| 
 | Overwrite(log data) | doesn't make sense as stream => use batch | doesn't make sense as stream => use batch |
 | Append(log data) | Read log data and write log data in an append mode to a target (examples: write logs from Kafka to COS as archive, or read log files from COS) | doesn't make sense |
 | Update(log data) | doesn't make sense as there is no key | "Confluent" use case: read verbatim (key / value) and interpret during write: insert, update and delete records as needed in the target. Requires that target supports these operations. | 
+
+| **Write operation (into change data)** | **Source data type: Log data (KStream)** | **Source data type: Change data (KTable)** |
 |---|---|---| 
 | Overwrite(change data) | doesn't make sense as stream => use batch | doesn't make sense as stream => use batch |
 | Append(change data) | doesn't make sense. Can't go from log data to change data | Read verbatim (key / value) and write verbatim (key /value) Use case: Read CDC stream, apply transformations (anonymizations, redactions) and write CDC stream out to target. If no transformations are applied this is like MirrorMaker |
