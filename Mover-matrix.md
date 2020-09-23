@@ -27,9 +27,8 @@ The last parameter is the write operation. Here we have the following:
 
 #### Matrix for batch data flow
 
-|  | Source data (read data type)| | 
-|---|---|---|
-| **Write operation** | Log data (KStream) | Change data (KTable) | 
+| **Write operation** | **Source data type: Log data (KStream)** | **Source data type: Change data (KTable)** |
+|---|---|---| 
 | Overwrite | Copy of log data (stored as normal rows). Overwrite any existing table/object of the same name. | Data is interpreted as changes and used to "compute" a table. Snapshot of data (stored as normal rows), will overwrite any existing table of the same name. |
 | Append | Append the entire content of the log data to already existing data (stored as normal rows). Use case: aggregate several source data into one target or if source is repeatedly deleted then it can be aggregated over time. | doesn't make sense |
 | Update | doesn't make sense as there is no key | Read the data verbatim (no interpretation) and update the target data by applying the changes to the existing target table.  |
@@ -38,9 +37,8 @@ The last parameter is the write operation. Here we have the following:
 
 #### Matrix for stream data flow
 
-|  | Source data (read data type) |  | 
-|---|---|---|
-| **Write operation (target data type)** | Log data (KStream) | Change data (KTable) | 
+| **Write operation (target data type)** | **Source data type: Log data (KStream)** | **Source data type: Change data (KTable)** |
+|---|---|---| 
 | Overwrite(log data) | doesn't make sense as stream => use batch | doesn't make sense as stream => use batch |
 | Append(log data) | Read log data and write log data in an append mode to a target (examples: write logs from Kafka to COS as archive, or read log files from COS) | doesn't make sense |
 | Update(log data) | doesn't make sense as there is no key | "Confluent" use case: read verbatim (key / value) and interpret during write: insert, update and delete records as needed in the target. Requires that target supports these operations. | 

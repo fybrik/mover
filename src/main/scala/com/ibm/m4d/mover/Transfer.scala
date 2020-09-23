@@ -78,6 +78,7 @@ object Transfer {
       }
     }
 
+    // Load source and target data stores
     val source = DataStoreBuilder.buildSource(config).recover { case NonFatal(e) => throw e }.get
     val target = DataStoreBuilder.buildTarget(config).recover { case NonFatal(e) => throw e }.get
 
@@ -95,6 +96,9 @@ object Transfer {
 
       val sourceDF = source.read(spark, dataFlowType, sourceDataType)
 
+      // If the source data type is change data and the target data type is log data a snapshot has to be performed for a batch
+      // process in order to only filter out the last valid value for a key.
+      // If the source data type is log data no snapshot has to be performed as log data is already a snapshot.
       val performSnapshot = sourceDataType == DataType.ChangeData && targetDataType == DataType.LogData && dataFlowType == DataFlowType.Batch
 
       val df = if (performSnapshot) {
@@ -104,9 +108,11 @@ object Transfer {
         sourceDF
       }
 
+      // Apply transformations to the data frame. Depending if it's log data or change data different
+      // transform methods have to be called. Transform methods usually return a newly transformed
+      // data frame.
       val transformedDF = try {
         transformations
-          // as they were already applied to the Spark configuration
           .foldLeft(df) { case (df, transformation) =>
             sourceDataType match {
               case DataType.LogData                          => transformation.transformLogData(df)
