@@ -1,0 +1,29 @@
+{
+  source {
+    s3 {
+      endpoint = "s3.us-south.cloud-object-storage.appdomain.cloud"
+      region = "us-south"
+      accessKey = ""
+      secretKey = ""
+      bucket = "my-bucket"
+      objectKey = "file.parq"
+      dataFormat = "parquet"
+    }
+  } ,
+  destination {
+    s3 {
+      endpoint = "s3.us-south.cloud-object-storage.appdomain.cloud"
+      region = "us-south"
+      accessKey = ""
+      secretKey = ""
+      bucket = "my-bucket"
+      objectKey = "file.copy.json"
+      dataFormat = "json"
+    }
+  }
+  transformation = [{
+    name = "remove column"
+    columns = ["col1"]
+    action = "RemoveColumn"
+  }]
+}

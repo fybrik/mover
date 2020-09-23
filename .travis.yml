@@ -1,0 +1,64 @@
+language: java
+
+services:
+  - docker
+
+os:
+  - linux
+
+jdk:
+  - openjdk8
+
+git:
+  depth: 3
+
+branches:
+  only:
+    - master
+
+cache:
+  directories:
+    - $HOME/.m2
+    - $HOME/.ivy2
+    - $HOME/.cache
+    - $HOME/.zinc
+    - docker_images
+
+# Install must be set to prevent default `go get` to run.
+# The dependencies have already been vendored by `dep` so
+# we don't need to fetch them.
+install:
+  -
+
+stages:
+  - test
+  - docker-build
+
+jobs:
+  include:
+    - stage: test
+      script:
+        - mvn test -B
+    - stage: docker-build
+      if: (branch = master)
+      before_install:
+        - docker load -i docker_images/images.tar || true
+        - docker images
+      script:
+        - docker build -t ghcr.io/the-mesh-for-data/spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark
+        - docker images
+        - mvn package jib:dockerBuild -DskipTests -Plocal-to-ghcr
+      before_cache:
+        - docker save -o docker_images/images.tar $(docker images -a -q)
+      before_deploy:
+        - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin "$DOCKER_HOSTNAME"
+      deploy:
+        skip_cleanup: true
+        provider: script
+        script: docker push ghcr.io/the-mesh-for-data/mover:latest
+        on:
+          condition: $TRAVIS_PULL_REQUEST = false
+          branch: master
+
+notifications:
+  email: false
