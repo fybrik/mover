@@ -94,6 +94,9 @@ object Transfer {
 
     try {
 
+      // Read data frame given the data flow type and source data type
+      // More information about data flows and data types can be found in [[DataFlowType]], [[DataType]]
+      // or in the Mover-matrix.md description.
       val sourceDF = source.read(spark, dataFlowType, sourceDataType)
 
       // If the source data type is change data and the target data type is log data a snapshot has to be performed for a batch
