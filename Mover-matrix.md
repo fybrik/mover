@@ -27,7 +27,7 @@ The last parameter is the write operation. Here we have the following:
 
 #### Matrix for batch data flow
 
-|  | Source data (read data type) |  | 
+|  | Source data (read data type) | 
 |---|---|---|
 | **Write operation** | Log data (KStream) | Change data (KTable) | 
 | Overwrite | Copy of log data (stored as normal rows). Overwrite any existing table/object of the same name. | Data is interpreted as changes and used to "compute" a table. Snapshot of data (stored as normal rows), will overwrite any existing table of the same name. |
