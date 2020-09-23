@@ -2,9 +2,10 @@
 
 # Mover
 
-This is a collection of movement components. They are mostly used in [the-mesh-for-data](https://github.com/IBM/the-mesh-for-data).
+This is a collection of movement components. They are used in [the-mesh-for-data](https://github.com/IBM/the-mesh-for-data),
+but can be run as standalone service.
 
-It copies data between combinations of COS and Kafka and applies transformations.
+The mover copies data between combinations of COS and Kafka and applies transformations.
 It's built with extendability in mind so that custom data stores or transformations can be used.
 A description of data flows and data types can be found in the [mover matrix](Mover-matrix.md).
 
@@ -18,7 +19,7 @@ The latest image can be found at: `ghcr.io/the-mesh-for-data/mover:latest`
 ## Manually building the images
 
 The following notes sketch out how to manually build the images.
-The Spark base image can be build locally with the following command:
+The Spark base image can be built locally with the following command:
 
 ```docker build -t ghcr.io/the-mesh-for-data/spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark```
 
@@ -64,8 +65,8 @@ registry is available for downloading images.
 
 ### Running locally
 
-The easiest way to test the image in a local K8s cluster is to install controller of [the-mesh-for-data](https://github.com/IBM/the-mesh-for-data)
-and run one of the [examples](https://github.com/IBM/the-mesh-for-data/blob/master/manager/config/samples/motion_v1_batchtransfer.yaml) in against a configured
+The easiest way to test the image in a local K8s cluster is to install the controller of [the-mesh-for-data](https://github.com/IBM/the-mesh-for-data)
+and run one of the [examples](https://github.com/IBM/the-mesh-for-data/blob/master/manager/config/samples/motion_v1_batchtransfer.yaml) against a configured
 COS/S3 bucket. Instead of the `vaultPath` `accessKey` and `secretKey` can be configured directly for development and testing.
 
 If K8s should not be used a local app run can be done via the AppTest suite. A correct config file has to be put in a path. An example template configuration
