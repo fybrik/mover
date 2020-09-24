@@ -65,10 +65,10 @@ object SparkUtils {
       .set("spark.ui.enabled", debug.toString)
       .set("spark.sql.parquet.compression.codec", "snappy")
       .set("spark.sql.parquet.writeLegacyFormat", "true")
-      .set("spark.sql.shuffle.partitions", "10") // TODO make configurable
+      .set("spark.sql.shuffle.partitions", sparkConfig.shufflePartitions.toString)
       .setAll(additionalOptions)
       .setIf("spark.executor.instances", numInstances.toString, numInstances > 0)
-      .setIf("spark.executor.memory", sparkConfig.executorMemory.toString, numInstances > 0)
+      .setIf("spark.executor.memory", sparkConfig.executorMemory, numInstances > 0)
       .setIf("spark.executor.cores", sparkConfig.executorCores.toString, numInstances > 0)
       .set("spark.kubernetes.container.image", sparkConfig.image)
       .set("spark.kubernetes.container.image.pullPolicy", sparkConfig.imagePullPolicy)

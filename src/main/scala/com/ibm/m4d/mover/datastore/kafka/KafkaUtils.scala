@@ -65,14 +65,22 @@ object KafkaUtils {
     }
   }
 
-  private def confluentRegistryConfigurationReading(schemaRegistryUrl: String, kafkaTopic: String): Map[String, String] = {
-    Map(
-      SchemaManager.PARAM_SCHEMA_REGISTRY_URL -> schemaRegistryUrl,
-      SchemaManager.PARAM_SCHEMA_REGISTRY_TOPIC -> kafkaTopic,
-      SchemaManager.PARAM_VALUE_SCHEMA_NAMING_STRATEGY -> SchemaManager.SchemaStorageNamingStrategies.TOPIC_NAME,
-      SchemaManager.PARAM_VALUE_SCHEMA_ID -> "latest",
-      SchemaManager.PARAM_KEY_SCHEMA_ID -> "latest"
-    )
+  private def confluentRegistryConfigurationReading(schemaRegistryUrl: String, kafkaTopic: String, isKey: Boolean = false): Map[String, String] = {
+    if (isKey) {
+      Map(
+        SchemaManager.PARAM_SCHEMA_REGISTRY_URL -> schemaRegistryUrl,
+        SchemaManager.PARAM_SCHEMA_REGISTRY_TOPIC -> kafkaTopic,
+        SchemaManager.PARAM_KEY_SCHEMA_NAMING_STRATEGY -> SchemaManager.SchemaStorageNamingStrategies.TOPIC_NAME,
+        SchemaManager.PARAM_KEY_SCHEMA_ID -> "latest"
+      )
+    } else {
+      Map(
+        SchemaManager.PARAM_SCHEMA_REGISTRY_URL -> schemaRegistryUrl,
+        SchemaManager.PARAM_SCHEMA_REGISTRY_TOPIC -> kafkaTopic,
+        SchemaManager.PARAM_VALUE_SCHEMA_NAMING_STRATEGY -> SchemaManager.SchemaStorageNamingStrategies.TOPIC_NAME,
+        SchemaManager.PARAM_VALUE_SCHEMA_ID -> "latest",
+      )
+    }
   }
 
   def mapToValue(df: DataFrame): DataFrame = {
@@ -186,17 +194,8 @@ object KafkaUtils {
     } else {
       // TODO The df should be augmented with the meta-data from the registry, i.e.
       // the avro schema should be attached to each column.
-      val snapshotDF = if (kafkaConfig.createSnapshot) {
-        logger.info("Creating snapshot of Kafka topic...")
-        SnapshotAggregator.createSnapshotOnBinary(df)
-      } else {
-        logger.info("Topic is a refresh only Kafka topic! No need for a snapshot!")
-        df
-      }
 
-      val sparkDF = kafkaBytesToCatalyst(snapshotDF, kafkaConfig)
-
-      mapToValue(sparkDF)
+      kafkaBytesToCatalyst(df, kafkaConfig)
     }
   }
 
@@ -206,20 +205,17 @@ object KafkaUtils {
       case SerializationFormat.Avro =>
         (kafkaConfig.schemaRegistryURL, kafkaConfig.keySchema, kafkaConfig.valueSchema) match {
           case (Some(registry), None, None) => // Load schema from confluent registry
-            val schemaRegistryConf = confluentRegistryConfigurationReading(registry, kafkaConfig.kafkaTopic)
-            df.select(
-              from_confluent_avro(col("key"), schemaRegistryConf).as("key"),
-              from_confluent_avro(col("value"), schemaRegistryConf).as("value")
-            )
+            val schemaRegistryConfKey = confluentRegistryConfigurationReading(registry, kafkaConfig.kafkaTopic, isKey = true)
+            val schemaRegistryConfValue = confluentRegistryConfigurationReading(registry, kafkaConfig.kafkaTopic, isKey = false)
+            df.withColumn("key", from_confluent_avro(col("key"), schemaRegistryConfKey).as("key"))
+              .withColumn("value", from_confluent_avro(col("value"), schemaRegistryConfValue).as("value"))
 
           case (None, None, Some(valueSchema)) => // se schema that is specified in valueSchema
-            df.select(from_avro(col("value"), valueSchema).as("value"))
+            df.withColumn("value", from_avro(col("value"), valueSchema).as("value"))
 
           case (None, Some(keySchema), Some(valueSchema)) => // se schema that is specified in valueSchema
-            df.select(
-              from_avro(col("key"), keySchema).as("key"),
-              from_avro(col("value"), valueSchema).as("value")
-            )
+            df.withColumn("key", from_avro(col("key"), keySchema).as("key"))
+              .withColumn("value", from_avro(col("value"), valueSchema).as("value"))
 
           case (_, _, _) => throw new IllegalArgumentException("Case not supported!")
         }
@@ -227,29 +223,28 @@ object KafkaUtils {
       case SerializationFormat.JSON =>
         (kafkaConfig.schemaRegistryURL, kafkaConfig.keySchema, kafkaConfig.valueSchema) match {
           case (Some(registry), None, None) => // Load schema from confluent registry
-            val schemaRegistryConf = confluentRegistryConfigurationReading(registry, kafkaConfig.kafkaTopic)
-            val avroSchema = loadSchemaFromRegistry(schemaRegistryConf)
-            val dataType = SchemaConverters.toSqlType(avroSchema).dataType
-            df.select(
-              from_json(df("key").cast(StringType), dataType).as("key"),
-              from_json(df("value").cast(StringType), dataType).as("value")
-            )
+            val schemaRegistryConfKey = confluentRegistryConfigurationReading(registry, kafkaConfig.kafkaTopic, isKey = true)
+            val schemaRegistryConfValue = confluentRegistryConfigurationReading(registry, kafkaConfig.kafkaTopic, isKey = false)
+            val keyAvroSchema = loadSchemaFromRegistry(schemaRegistryConfKey)
+            val valueAvroSchema = loadSchemaFromRegistry(schemaRegistryConfValue)
+            val keyDataType = SchemaConverters.toSqlType(keyAvroSchema).dataType
+            val valueDataType = SchemaConverters.toSqlType(valueAvroSchema).dataType
+            df.withColumn("key", from_json(df("key").cast(StringType), keyDataType).as("key"))
+              .withColumn("value", from_json(df("value").cast(StringType), valueDataType).as("value"))
 
           case (None, None, Some(valueSchema)) => // Use schema that is specified in valueSchema
             // TODO support multiple schema formats?
-            df.select(from_json(df("value").cast(StringType), valueSchema, Map.empty[String, String]).as("value"))
+            df.withColumn("value", from_json(df("value").cast(StringType), valueSchema, Map.empty[String, String]).as("value"))
 
           case (None, Some(keySchema), Some(valueSchema)) => // Use schema that is specified in valueSchema
             // TODO support multiple schema formats?
-            df.select(
-              from_json(df("key").cast(StringType), keySchema, Map.empty[String, String]).as("key"),
-              from_json(df("value").cast(StringType), valueSchema, Map.empty[String, String]).as("value")
-            )
+            df.withColumn("key", from_json(df("key").cast(StringType), keySchema, Map.empty[String, String]).as("key"))
+              .withColumn("value", from_json(df("value").cast(StringType), valueSchema, Map.empty[String, String]).as("value"))
 
           case (None, None, None) => // Infer schema from first row
             val firstRow = df.select(df("value").cast(StringType)).head().getAs[String](0)
             val schema = df.select(schema_of_json(firstRow)).head().getAs[String](0)
-            df.select(from_json(df("value").cast(StringType), schema, Map.empty[String, String]).as("value"))
+            df.withColumn("value", from_json(df("value").cast(StringType), schema, Map.empty[String, String]).as("value"))
 
           case (_, _, _) => throw new IllegalArgumentException("Case not supported!")
         }
