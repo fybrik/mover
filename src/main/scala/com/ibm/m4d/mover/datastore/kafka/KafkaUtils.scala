@@ -349,9 +349,9 @@ object KafkaUtils {
       SchemaManager.PARAM_SCHEMA_REGISTRY_URL -> kafkaConfig.schemaRegistryURL.getOrElse(""),
       SchemaManager.PARAM_SCHEMA_REGISTRY_TOPIC -> kafkaConfig.kafkaTopic,
       SchemaManager.PARAM_KEY_SCHEMA_NAMESPACE_FOR_RECORD_STRATEGY -> kafkaConfig.kafkaTopic,
+      SchemaManager.PARAM_KEY_SCHEMA_NAME_FOR_RECORD_STRATEGY -> "Key",
       SchemaManager.PARAM_VALUE_SCHEMA_NAMESPACE_FOR_RECORD_STRATEGY -> kafkaConfig.kafkaTopic,
       SchemaManager.PARAM_VALUE_SCHEMA_NAME_FOR_RECORD_STRATEGY -> "Value",
-      SchemaManager.PARAM_KEY_SCHEMA_NAME_FOR_RECORD_STRATEGY -> "Key",
     )
 
     val valueRegistryConfig = schemaRegistryConfs +
