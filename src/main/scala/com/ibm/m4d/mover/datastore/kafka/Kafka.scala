@@ -75,8 +75,8 @@ case class Kafka(
       case _               => throw new IllegalArgumentException(s"Unsupported SASL mechanism! '$saslMechanism'")
     }
     Map(
-      prefix + CommonClientConfigs.SECURITY_PROTOCOL_CONFIG -> securityProtocol,
-      prefix + SaslConfigs.SASL_MECHANISM -> saslMechanism,
+      prefix + CommonClientConfigs.SECURITY_PROTOCOL_CONFIG -> securityProtocol.toUpperCase(),
+      prefix + SaslConfigs.SASL_MECHANISM -> saslMechanism.toUpperCase(),
       (prefix + SaslConfigs.SASL_JAAS_CONFIG -> (jaasClass + " required username=\"" + user + "\" password=\"" + password + "\";"))
     ) ++ sslTruststoreLocation.map(s => prefix + SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG -> s) ++ sslTruststorePassword.map(s => prefix + SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG -> s)
   }

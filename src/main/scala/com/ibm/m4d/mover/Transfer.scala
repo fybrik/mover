@@ -17,6 +17,7 @@ import java.nio.charset.Charset
 import java.time.format.DateTimeFormatter
 import java.time.{ZoneId, ZonedDateTime}
 
+import com.ibm.m4d.mover.DataType.ChangeData
 import com.ibm.m4d.mover.conf.CredentialSubstitutor
 import com.ibm.m4d.mover.datastore.{DataStore, DataStoreBuilder}
 import com.ibm.m4d.mover.spark.{SnapshotAggregator, SparkConfig, SparkOutputCounter, SparkUtils}
@@ -90,7 +91,8 @@ object Transfer {
       target.additionalSparkConfig() ++
       transformations.foldLeft(Map.empty[String, String])((m, t) => m ++ t.additionalSparkConfig())
 
-    val spark = SparkUtils.sparkSession("transfer", debug = false, local = false, sparkConfig = SparkConfig.default, additionalOptions = additionalSparkConfig)
+    val sparkConf = if (config.hasPath("spark")) SparkConfig.parse(config.getConfig("spark")) else SparkConfig.default
+    val spark = SparkUtils.sparkSession("transfer", debug = false, local = false, sparkConfig = sparkConf, additionalOptions = additionalSparkConfig)
 
     try {
 
@@ -108,7 +110,24 @@ object Transfer {
         logger.info("Performing a snapshot of the source...")
         SnapshotAggregator.createSnapshot(sourceDF)
       } else {
-        sourceDF
+        if (dataFlowType == DataFlowType.Stream) {
+          if (sourceDataType == DataType.ChangeData) {
+            if (targetDataType == DataType.LogData) {
+              logger.warn("WARNING: Source data type is change data and target data type is log data" +
+                " in a stream scenario. A proper snapshot cannot be performed in this scenario " +
+                "so the data is just mapped to the value. This may lead to duplicate values and loss of nullable information!")
+              sourceDF.select("value.*")
+            } else {
+              // If source and target data type is ChangeData then only
+              // keep key and value and continue... TODO maybe Kafka needs to keep partition information?
+              sourceDF.select("key", "value")
+            }
+          } else {
+            sourceDF
+          }
+        } else {
+          sourceDF
+        }
       }
 
       // Apply transformations to the data frame. Depending if it's log data or change data different

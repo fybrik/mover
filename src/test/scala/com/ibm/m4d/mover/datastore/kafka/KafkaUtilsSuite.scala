@@ -218,9 +218,13 @@ class KafkaUtilsSuite extends ExtendedFunSuite with SparkTest with Matchers {
 
       val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig)
 
-      val deserializedRows = KafkaUtils.mapToValue(kafkaDeserializedDF).as[MyClass].collect()
+      val deserializedRows = kafkaDeserializedDF.collect()
 
-      deserializedRows should contain theSameElementsAs records
+      deserializedRows should have size 3
+
+      val deserializedValues = KafkaUtils.mapToValue(kafkaDeserializedDF).as[MyClass].collect()
+
+      deserializedValues should contain theSameElementsAs records
       dispatcher.cacheBySubject.keySet should contain theSameElementsAs Seq("topic-key", "topic-value")
       dispatcher.maxId shouldBe 2
       dispatcher.cacheBySubject.values.map(_.size).sum shouldBe 2
@@ -265,9 +269,13 @@ class KafkaUtilsSuite extends ExtendedFunSuite with SparkTest with Matchers {
 
       val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig)
 
-      val deserializedRows = KafkaUtils.mapToValue(kafkaDeserializedDF).as[MyClass].collect()
+      val deserializedRows = kafkaDeserializedDF.collect()
 
-      deserializedRows should contain theSameElementsAs records
+      deserializedRows should have size 3
+
+      val deserializedValues = KafkaUtils.mapToValue(kafkaDeserializedDF).as[MyClass].collect()
+
+      deserializedValues should contain theSameElementsAs records
     }
   }
 
@@ -308,9 +316,13 @@ class KafkaUtilsSuite extends ExtendedFunSuite with SparkTest with Matchers {
 
       val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig)
 
-      val deserializedRows = KafkaUtils.mapToValue(kafkaDeserializedDF).as[MyClass].collect()
+      val deserializedRows = kafkaDeserializedDF.collect()
 
-      deserializedRows should contain theSameElementsAs records
+      deserializedRows should have size 3
+
+      val deserializedValues = KafkaUtils.mapToValue(kafkaDeserializedDF).as[MyClass].collect()
+
+      deserializedValues should contain theSameElementsAs records
     }
   }
 
@@ -351,12 +363,16 @@ class KafkaUtilsSuite extends ExtendedFunSuite with SparkTest with Matchers {
 
       val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig)
 
+      val deserializedRows = kafkaDeserializedDF.collect()
+
+      deserializedRows should have size 3
+
       // Cast to integer first as JSON automatic inference infers integer numbers as long
-      val deserializedRows = KafkaUtils.mapToValue(kafkaDeserializedDF).select(col("i").cast(IntegerType), col("s"), col("d"))
+      val deserializedValues = KafkaUtils.mapToValue(kafkaDeserializedDF).select(col("i").cast(IntegerType), col("s"), col("d"))
         .as[MyClass]
         .collect()
 
-      deserializedRows should contain theSameElementsAs records
+      deserializedValues should contain theSameElementsAs records
     }
   }
 
@@ -402,9 +418,13 @@ class KafkaUtilsSuite extends ExtendedFunSuite with SparkTest with Matchers {
 
       val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig)
 
-      val deserializedRows = KafkaUtils.mapToValue(kafkaDeserializedDF).as[MyClass].collect()
+      val deserializedRows = kafkaDeserializedDF.collect()
 
-      deserializedRows should contain theSameElementsAs records
+      deserializedRows should have size 3
+
+      val deserializedValues = KafkaUtils.mapToValue(kafkaDeserializedDF).as[MyClass].collect()
+
+      deserializedValues should contain theSameElementsAs records
       dispatcher.cacheBySubject.keySet should contain theSameElementsAs Seq("topic-key", "topic-value")
       dispatcher.maxId shouldBe 2
       dispatcher.cacheBySubject.values.map(_.size).sum shouldBe 2

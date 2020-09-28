@@ -29,6 +29,7 @@ case class SparkConfig(
     executorMemory: String = "4g",
     image: Option[String] = None,
     imagePullPolicy: Option[String] = None,
+    shufflePartitions: Int = 10,
     additionalOptions: Map[String, String] = Map.empty[String, String]
 )
 
@@ -42,6 +43,7 @@ object SparkConfig {
       if (config.hasPath("executorMemory")) config.getString("executorMemory") else "4g",
       ConfigUtils.opt(config, "image"),
       ConfigUtils.opt(config, "imagePullPolicy"),
+      if (config.hasPath("shufflePartitions")) config.getInt("shufflePartitions") else 10,
       if (config.hasPath("additionalOptions")) ConfigUtils.parseMap(config.getConfig("additionalOptions")) else Map.empty[String, String]
     )
   }
