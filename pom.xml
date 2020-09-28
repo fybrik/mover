@@ -25,7 +25,7 @@
 		<scala.version>${scala.compat.version}.${scala.minor.version}</scala.version>
 		<slf4j.version>1.7.28</slf4j.version>
 		<kafka.version>2.2.1</kafka.version>
-		<confluent.version>5.5.1</confluent.version>
+		<confluent.version>5.2.2</confluent.version>
 		<abris.version>3.2.0</abris.version>
 		<spark.version>2.4.7</spark.version>
 		<hadoop.version>2.7.3</hadoop.version>
