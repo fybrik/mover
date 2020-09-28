@@ -112,7 +112,7 @@ object Transfer {
       } else {
         if (dataFlowType == DataFlowType.Stream) {
           if (sourceDataType == DataType.ChangeData) {
-            if (targetDataType == DataType.LogData) { // If the
+            if (targetDataType == DataType.LogData) {
               logger.warn("WARNING: Source data type is change data and target data type is log data" +
                 " in a stream scenario. A proper snapshot cannot be performed in this scenario " +
                 "so the data is just mapped to the value. This may lead to duplicate values and loss of nullable information!")
