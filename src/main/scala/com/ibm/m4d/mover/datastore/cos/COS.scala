@@ -43,6 +43,7 @@ case class COS(
     serviceInstance: Option[String] = None,
     accessKey: Option[String] = None,
     secretKey: Option[String] = None,
+    partitionBy: Seq[String] = Seq.empty[String],
     serviceName: String = COSTargetServiceName
 ) extends DataStore(iType) {
   private val logger = LoggerFactory.getLogger(getClass)
@@ -81,12 +82,12 @@ case class COS(
 
   override def write(df: DataFrame, targetDataType: DataType, writeOperation: WriteOperation): Unit = {
     val path = cosUrl(bucket, objectKey, serviceName)
-    fileFormat.write(df, path, writeOperation)
+    fileFormat.write(df, path, writeOperation, partitionBy)
   }
 
   override def writeStream(df: DataFrame, targetDataType: DataType, writeOperation: WriteOperation): DataStreamWriter[Row] = {
     val path = cosUrl(bucket, objectKey, serviceName)
-    fileFormat.writeStream(df, path, writeOperation)
+    fileFormat.writeStream(df, path, writeOperation, partitionBy)
   }
 
   private def cosClient(): AmazonS3 = {

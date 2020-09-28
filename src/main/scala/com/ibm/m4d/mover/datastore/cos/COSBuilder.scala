@@ -18,6 +18,7 @@ import com.ibm.m4d.mover.spark.{COSSourceServiceName, COSTargetServiceName}
 import com.typesafe.config.Config
 
 import scala.util.Try
+import scala.collection.JavaConverters._
 
 /**
   * A builder that knows how to instatiate a [[COS]] object or will return failure objects
@@ -46,7 +47,8 @@ case object COSBuilder extends DataStoreBuilder {
       val serviceInstance = ConfigUtils.opt(cosConfig, "serviceInstance")
       val accessKey = ConfigUtils.opt(cosConfig, "accessKey")
       val secretKey = ConfigUtils.opt(cosConfig, "secretKey")
-      cos.COS(iType, endpoint, bucket, objectKey, fileFormat, region, apiKey, serviceInstance, accessKey, secretKey, serviceName)
+      val partitionBy = if (cosConfig.hasPath("partitionBy")) cosConfig.getStringList("partitionBy").asScala else Seq.empty[String]
+      cos.COS(iType, endpoint, bucket, objectKey, fileFormat, region, apiKey, serviceInstance, accessKey, secretKey, partitionBy, serviceName)
     }
   }
 
