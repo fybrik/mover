@@ -85,3 +85,16 @@ possible errors: `Caused by: java.nio.file.AccessDeniedException: ./mover-1.0-SN
 
 Add the anyuid policy to your service account:
 oc adm policy add-scc-to-user anyuid -z default -n mover
+
+
+### Setting up a minimal movement only the-mesh-for-data version
+
+In order to test the mover image on a running K8s there is no need for a complete installation of [the-mesh-for-data](https://github.com/IBM/the-mesh-for-data).
+A narrowed down version that only supports the movement components can be installed using the [movement_controller.yaml](movement_controller.yaml) file.
+
+This will install a control component and the CRDs that allow to run movements. In order to install the yaml please follow these steps:
+1. Make sure the cert-manager operator is installed. Either by installing via OpenShift UI or manually via `kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v0.13.1/cert-manager.yaml`
+2. Create a namespace: `kubectl create ns m4d-system`
+3. Run the install YAML file: `kubectl apply -f movement_controller.yaml`
+
+If you want to test with your own image make sure to update either the environment variable `MOVER_IMAGE` in the controller deployment or the `spec.image` in the BatchTransfer definition.
