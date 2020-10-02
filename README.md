@@ -16,12 +16,25 @@ possible security updates of the base image are applied.
 
 The latest image can be found at: `ghcr.io/the-mesh-for-data/mover:latest`
 
+### Setting up a minimal movement only the-mesh-for-data version
+
+In order to test the mover image on a running K8s there is no need for a complete installation of [the-mesh-for-data](https://github.com/IBM/the-mesh-for-data).
+A narrowed down version that only supports the movement components can be installed using the [movement_controller.yaml](movement_controller.yaml) file.
+
+This will install a control component and the CRDs that allow to run movements. In order to install the yaml please follow these steps:
+1. Make sure the cert-manager operator is installed. Either by installing via OpenShift UI or manually via `kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v0.13.1/cert-manager.yaml`
+2. Create a namespace: `kubectl create ns the-mesh-for-data`
+3. Run the install YAML file: `kubectl apply -f movement_controller.yaml`
+4. Run some example BatchTransfers (please adapt template): `kubectl apply -f batchtransfer.yaml`
+
+If you want to test with your own image make sure to update either the environment variable `MOVER_IMAGE` in the controller deployment or the `spec.image` in the BatchTransfer definition.
+
 ## Manually building the images
 
 The following notes sketch out how to manually build the images.
 The Spark base image can be built locally with the following command:
 
-```docker build -t ghcr.io/the-mesh-for-data/spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark```
+```docker build -t spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark```
 
 After the base image is built the mover image can be build using:
 ```mvn package jib:dockerBuild -DskipTests -Plocal-to-ghcr```
@@ -32,27 +45,43 @@ Afterwards it can be pushed to a registry using the `docker push` command.
 
 ### Local building for use with local kind registry
 
-1. ```docker build -t localhost:5000/the-mesh-for-data/spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark```
+1. ```docker build -t spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark```
 2. ```mvn package jib:dockerBuild -DskipTests -Plocal-registry```
 
-### Setting up the registry in RedHat CodeReady Containers
+## Local testing with kind
+### Setting up kind
+Tested on OSX with Docker 19.03.13 and kind 0.9.0
+Create the kind cluster
+```
+kind create cluster --name kind -v 4 --retain --wait=1m --config ./kind-config.yaml --image=kindest/node:v1.16.9
+```
+Configure kind cluster to find registry
+```
+kubectl config use-context kind-kind
+for node in $(kind get nodes); do
+    kubectl annotate node "${node}" "tilt.dev/registry=localhost:5000";
+done
+```
+Create local registry
+```
+docker run -d --restart=always -p "5000:5000" --name "kind-registry" registry:2
+docker network connect kind kind-registry
+```
 
-1. Get the host name of where the registry resides:
-   `REG_HOST=$(oc get route default-route -n openshift-image-registry --template='{{ .spec.host }}')`
-2. Configure DOCKER_OPTS environment, e.g.
-   `export DOCKER_OPTS="--insecure-registry $REG_HOST:443"`
-3. Extract the certificate from the registry:
-    `oc extract secret/router-ca --keys=tls.crt -n openshift-ingress-operator`
-4. Add the certificate to the keychain on the Mac:
-    `sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain tls.crt`
-    On Linux, copy the file:
-    `cp tls.crt /etc/docker/certs.d/default-route-openshift-image-registry.apps-crc.testing/`
-5. Restart docker
-6. login to docker:
-   docker login -u kubeadmin -p $(oc whoami -t) $REG_HOST
+### Building image and pushing to kind
+```
+docker build -t spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark
+mvn package jib:dockerBuild -DskipTests -Plocal-registry
+docker push localhost:5000/the-mesh-for-data/mover:latest
+```
 
+### Running images
+
+The BatchTransfer spec.image parameter has to be set to `localhost:5000/the-mesh-for-data/mover:latest`.
+
+## Local testing with minikube
 ### Setting up the registry with minikube
-
+Tested with minikube v1.8.1.
 Minikube setup:
 `minikube start --vm-driver=virtualbox --addons=registry --kubernetes-version v1.16.0 --memory=4000mb`
 
@@ -63,21 +92,55 @@ registry is available for downloading images.
 
 * Point Docker environment to minikube's `eval $(minikube docker-env)`
 
-### Running locally
+### Building image and pushing to minikube
+Minikube is running in a VM and has a docker instance. This can be used to build and load images.
+Make sure that your docker client is using minikube's docker environment: `eval $(minikube docker-env)`
 
-The easiest way to test the image in a local K8s cluster is to install the controller of [the-mesh-for-data](https://github.com/IBM/the-mesh-for-data)
-and run one of the [examples](https://github.com/IBM/the-mesh-for-data/blob/master/manager/config/samples/motion_v1_batchtransfer.yaml) against a configured
-COS/S3 bucket. Instead of the `vaultPath` `accessKey` and `secretKey` can be configured directly for development and testing.
+```
+docker build -t spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark
+mvn package jib:dockerBuild -DskipTests -Pdev
+```
 
-If K8s should not be used a local app run can be done via the AppTest suite. A correct config file has to be put in a path. An example template configuration
+### Running images
+
+The BatchTransfer spec has to be adapted that the image and imagePullPolicy are changed.
+The image pull policy has to be `IfNotPresent` as no image should be pulled but the already available
+image in the local minikube docker should be used.
+  
+```
+image: mover:latest
+imagePullPolicy: "IfNotPresent"
+```
+
+## Testing with OpenShift
+
+### Setting up with OpenShift
+
+1. Make sure the cert-manager operator is installed. Either by installing via OpenShift UI or manually via `kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v0.13.1/cert-manager.yaml`
+2. Install the minimal movement operator as described above
+3. Make sure you can push images to your OpenShift. On the IBM Cloud an article on how to set up an external route can be found [here](https://cloud.ibm.com/docs/openshift?topic=openshift-registry#openshift_internal_registry)
+
+### Building image and pushing to OpenShift
+
+```
+docker build -t spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark
+mvn package jib:dockerBuild -DskipTests -Plocal-registry -Djib.to.image=<your_registry>/<your_namespace>/mover:latest
+docker push <your_registry>/<your_namespace>/mover:latest
+```
+
+### Running images
+
+The BatchTransfer spec.image parameter has to be set to `<your_registry>/<your_namespace>/mover:latest`.
+
+Alternatively if you want to specify a default image for all BatchTransfers and StreamTransfers please change the `MOVER_IMAGE`
+environment variable in the deployment of the controller.
+```kubectl -n the-mesh-for-data edit deployment m4d-controller-manager```
+
+## Running locally in the IDE
+
+A local app run can be done via the [AppTest](src/test/scala/com/ibm/m4d/mover/AppTest.scala) suite as well. Extend it with another test
+ that is using a configuration of your choosing. A correct config file has to be put in a path. An example template configuration
 can be found [here](src/main/resources/test.conf.template)  
-
-### Building the Spark base image
-The base image for the maven jib plugin is configured to be docker://spark-base:2.4.7.
-So this image has to be available in the local docker daemon.
-
-1. Go to spark directory `cd src/main/docker/spark`
-2. Build base image `docker build -t spark-base:2.4.7 .`
 
 ### Troubleshooting
 When the job is not starting or job shows permission errors like the following or errors about using uid ranges:
@@ -87,14 +150,3 @@ Add the anyuid policy to your service account:
 oc adm policy add-scc-to-user anyuid -z default -n mover
 
 
-### Setting up a minimal movement only the-mesh-for-data version
-
-In order to test the mover image on a running K8s there is no need for a complete installation of [the-mesh-for-data](https://github.com/IBM/the-mesh-for-data).
-A narrowed down version that only supports the movement components can be installed using the [movement_controller.yaml](movement_controller.yaml) file.
-
-This will install a control component and the CRDs that allow to run movements. In order to install the yaml please follow these steps:
-1. Make sure the cert-manager operator is installed. Either by installing via OpenShift UI or manually via `kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v0.13.1/cert-manager.yaml`
-2. Create a namespace: `kubectl create ns the-mesh-for-data`
-3. Run the install YAML file: `kubectl apply -f movement_controller.yaml`
-
-If you want to test with your own image make sure to update either the environment variable `MOVER_IMAGE` in the controller deployment or the `spec.image` in the BatchTransfer definition.
