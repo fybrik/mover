@@ -25,7 +25,8 @@ This will install a control component and the CRDs that allow to run movements. 
 1. Make sure the cert-manager operator is installed. Either by installing via OpenShift UI or manually via `kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v0.13.1/cert-manager.yaml`
 2. Create a namespace: `kubectl create ns the-mesh-for-data`
 3. Run the install YAML file: `kubectl apply -f movement_controller.yaml`
-4. Run some example BatchTransfers (please adapt template): `kubectl apply -f batchtransfer.yaml`
+4. When the BatchTransfers are not created in the `the-mesh-for-data` namespace please install the event creator role in that namespace: `kubectl apply -f EventCreatorRole.yaml` (please adapt namespace in file)
+5. Run some example BatchTransfers (please adapt template): `kubectl apply -f batchtransfer.yaml`
 
 If you want to test with your own image make sure to update either the environment variable `MOVER_IMAGE` in the controller deployment or the `spec.image` in the BatchTransfer definition.
 
@@ -122,15 +123,23 @@ imagePullPolicy: "IfNotPresent"
 
 ### Building image and pushing to OpenShift
 
+In OpenShift it's important to push the images to the project that you want to use. So if the BatchTransfers
+should be used in namespace `default` the image should be available at `image-registry.openshift-image-registry.svc:5000/default/mover:latest`.
+
+Note: OpenShift has external and internal URLs. To push the image from your local machine to e.g. an OpenShift
+in the cloud the external URL might be something like `image-registry-openshift-image-registry.demo-demo-deadbeef-0000.eu-de.containers.appdomain.cloud`
+while the internal URL where the images will be reachable is `image-registry.openshift-image-registry.svc:5000.` The images
+will be re-tagged automatically.
+
 ```
 docker build -t spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark
-mvn package jib:dockerBuild -DskipTests -Plocal-registry -Djib.to.image=<your_registry>/<your_namespace>/mover:latest
+mvn package jib:dockerBuild -DskipTests -Djib.to.image=<your_registry>/<your_namespace>/mover:latest
 docker push <your_registry>/<your_namespace>/mover:latest
 ```
 
 ### Running images
 
-The BatchTransfer spec.image parameter has to be set to `<your_registry>/<your_namespace>/mover:latest`.
+The BatchTransfer spec.image parameter has to be set to `image-registry.openshift-image-registry.svc:5000/<your_namespace>/mover:latest`.
 
 Alternatively if you want to specify a default image for all BatchTransfers and StreamTransfers please change the `MOVER_IMAGE`
 environment variable in the deployment of the controller.
@@ -149,4 +158,6 @@ possible errors: `Caused by: java.nio.file.AccessDeniedException: ./mover-1.0-SN
 Add the anyuid policy to your service account:
 oc adm policy add-scc-to-user anyuid -z default -n mover
 
-
+When the job ends with ```[Transfer$] Could not send finished event to Kubernetes!
+                          io.fabric8.kubernetes.client.KubernetesClientException: Failure executing: POST```
+then the proper roles to create events are not defined in the namespace you are using. Please run `kubectl apply -f EventCreatorRole.yaml` 

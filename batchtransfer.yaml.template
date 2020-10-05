@@ -28,6 +28,7 @@ spec:
   maxFailedRetries: 1
   image: ghcr.io/the-mesh-for-data/mover:latest
   imagePullPolicy: "Always"
+  noFinalizer: false
   readDataType: LogData
   writeDataType: LogData
   writeOperation: Overwrite
