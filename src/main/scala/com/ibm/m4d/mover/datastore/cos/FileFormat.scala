@@ -13,7 +13,7 @@
 package com.ibm.m4d.mover.datastore.cos
 
 import com.ibm.m4d.mover.WriteOperation
-import org.apache.spark.sql.{DataFrame, Row, SaveMode, SparkSession}
+import org.apache.spark.sql.{DataFrame, DataFrameWriter, Row, SaveMode, SparkSession}
 import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode}
 
 /**
@@ -29,8 +29,24 @@ import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode}
 trait FileFormat {
   def read(spark: SparkSession, path: String): DataFrame
   def readStream(spark: SparkSession, path: String): DataFrame
-  def write(df: DataFrame, path: String, writeOperation: WriteOperation): Unit
-  def writeStream(df: DataFrame, path: String, writeOperation: WriteOperation): DataStreamWriter[Row]
+  def write(df: DataFrame, path: String, writeOperation: WriteOperation, partitionBy: Seq[String]): Unit
+  def writeStream(df: DataFrame, path: String, writeOperation: WriteOperation, partitionBy: Seq[String]): DataStreamWriter[Row]
+
+  def setPartitions(dataFrameWriter: DataFrameWriter[Row], partitionBy: Seq[String]): DataFrameWriter[Row] = {
+    if (partitionBy.isEmpty) {
+      dataFrameWriter
+    } else {
+      dataFrameWriter.partitionBy(partitionBy: _*)
+    }
+  }
+
+  def setPartitionsStream(dataStreamWriter: DataStreamWriter[Row], partitionBy: Seq[String]): DataStreamWriter[Row] = {
+    if (partitionBy.isEmpty) {
+      dataStreamWriter
+    } else {
+      dataStreamWriter.partitionBy(partitionBy: _*)
+    }
+  }
 }
 
 object FileFormat {
@@ -39,22 +55,23 @@ object FileFormat {
 
     override def readStream(spark: SparkSession, path: String): DataFrame = spark.readStream.parquet(path)
 
-    override def write(df: DataFrame, path: String, writeOperation: WriteOperation): Unit = {
+    override def write(df: DataFrame, path: String, writeOperation: WriteOperation, partitionBy: Seq[String]): Unit = {
       val saveMode = writeOperation match {
         case WriteOperation.Append    => SaveMode.Append
         case WriteOperation.Overwrite => SaveMode.Overwrite
         case WriteOperation.Update    => throw new IllegalArgumentException("Update operation not supported for batch!")
       }
-      df.write.mode(saveMode).parquet(path)
+      setPartitions(df.write, partitionBy).mode(saveMode).parquet(path)
     }
 
-    override def writeStream(df: DataFrame, path: String, writeOperation: WriteOperation): DataStreamWriter[Row] = {
+    override def writeStream(df: DataFrame, path: String, writeOperation: WriteOperation, partitionBy: Seq[String]): DataStreamWriter[Row] = {
       val outputMode = writeOperation match {
         case WriteOperation.Append    => OutputMode.Append()
         case WriteOperation.Update    => throw new IllegalArgumentException("Write operation overwrite is not supported for a stream into parquet!")
         case WriteOperation.Overwrite => throw new IllegalArgumentException("Write operation overwrite is not supported for a stream!")
       }
-      df.writeStream.outputMode(outputMode)
+      setPartitionsStream(df.writeStream, partitionBy)
+        .outputMode(outputMode)
         .format("parquet")
         .option("path", path)
     }
@@ -65,22 +82,23 @@ object FileFormat {
 
     override def readStream(spark: SparkSession, path: String): DataFrame = spark.readStream.json(path)
 
-    override def write(df: DataFrame, path: String, writeOperation: WriteOperation): Unit = {
+    override def write(df: DataFrame, path: String, writeOperation: WriteOperation, partitionBy: Seq[String]): Unit = {
       val saveMode = writeOperation match {
         case WriteOperation.Append    => SaveMode.Append
         case WriteOperation.Overwrite => SaveMode.Overwrite
         case WriteOperation.Update    => throw new IllegalArgumentException("Update operation not supported for batch!")
       }
-      df.write.mode(saveMode).json(path)
+      setPartitions(df.write, partitionBy).mode(saveMode).json(path)
     }
 
-    override def writeStream(df: DataFrame, path: String, writeOperation: WriteOperation): DataStreamWriter[Row] = {
+    override def writeStream(df: DataFrame, path: String, writeOperation: WriteOperation, partitionBy: Seq[String]): DataStreamWriter[Row] = {
       val outputMode = writeOperation match {
         case WriteOperation.Append    => OutputMode.Append()
         case WriteOperation.Update    => throw new IllegalArgumentException("Write operation overwrite is not supported for a stream into JSON!")
         case WriteOperation.Overwrite => throw new IllegalArgumentException("Write operation overwrite is not supported for a stream!")
       }
-      df.writeStream.outputMode(outputMode)
+      setPartitionsStream(df.writeStream, partitionBy)
+        .outputMode(outputMode)
         .format("json")
         .option("path", path)
     }
@@ -91,22 +109,23 @@ object FileFormat {
 
     override def readStream(spark: SparkSession, path: String): DataFrame = spark.readStream.csv(path)
 
-    override def write(df: DataFrame, path: String, writeOperation: WriteOperation): Unit = {
+    override def write(df: DataFrame, path: String, writeOperation: WriteOperation, partitionBy: Seq[String]): Unit = {
       val saveMode = writeOperation match {
         case WriteOperation.Append    => SaveMode.Append
         case WriteOperation.Overwrite => SaveMode.Overwrite
         case WriteOperation.Update    => throw new IllegalArgumentException("Update operation not supported for batch!")
       }
-      df.write.mode(saveMode).csv(path)
+      setPartitions(df.write, partitionBy).mode(saveMode).csv(path)
     }
 
-    override def writeStream(df: DataFrame, path: String, writeOperation: WriteOperation): DataStreamWriter[Row] = {
+    override def writeStream(df: DataFrame, path: String, writeOperation: WriteOperation, partitionBy: Seq[String]): DataStreamWriter[Row] = {
       val outputMode = writeOperation match {
         case WriteOperation.Append    => OutputMode.Append()
         case WriteOperation.Update    => throw new IllegalArgumentException("Write operation overwrite is not supported for a stream into CSV!")
         case WriteOperation.Overwrite => throw new IllegalArgumentException("Write operation overwrite is not supported for a stream!")
       }
-      df.writeStream.outputMode(outputMode)
+      setPartitionsStream(df.writeStream, partitionBy)
+        .outputMode(outputMode)
         .format("csv")
         .option("path", path)
     }
@@ -117,22 +136,23 @@ object FileFormat {
 
     override def readStream(spark: SparkSession, path: String): DataFrame = spark.readStream.orc(path)
 
-    override def write(df: DataFrame, path: String, writeOperation: WriteOperation): Unit = {
+    override def write(df: DataFrame, path: String, writeOperation: WriteOperation, partitionBy: Seq[String]): Unit = {
       val saveMode = writeOperation match {
         case WriteOperation.Append    => SaveMode.Append
         case WriteOperation.Overwrite => SaveMode.Overwrite
         case WriteOperation.Update    => throw new IllegalArgumentException("Update operation not supported for batch!")
       }
-      df.write.mode(saveMode).orc(path)
+      setPartitions(df.write, partitionBy).mode(saveMode).orc(path)
     }
 
-    override def writeStream(df: DataFrame, path: String, writeOperation: WriteOperation): DataStreamWriter[Row] = {
+    override def writeStream(df: DataFrame, path: String, writeOperation: WriteOperation, partitionBy: Seq[String]): DataStreamWriter[Row] = {
       val outputMode = writeOperation match {
         case WriteOperation.Append    => OutputMode.Append()
         case WriteOperation.Update    => throw new IllegalArgumentException("Write operation overwrite is not supported for a stream into ORC!")
         case WriteOperation.Overwrite => throw new IllegalArgumentException("Write operation overwrite is not supported for a stream!")
       }
-      df.writeStream.outputMode(outputMode)
+      setPartitionsStream(df.writeStream, partitionBy)
+        .outputMode(outputMode)
         .format("orc")
         .option("path", path)
     }
