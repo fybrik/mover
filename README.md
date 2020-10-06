@@ -2,26 +2,35 @@
 
 # Mover
 
-This is a collection of movement components. They are used in [the-mesh-for-data](https://github.com/IBM/the-mesh-for-data),
-but can be run as standalone service.
+This is a  collection of data movement capabilities  that are intended
+as a building block that can  be integrated into a  variety of different
+control        planes.          They        are         used        in
+[the-mesh-for-data](https://github.com/IBM/the-mesh-for-data), but can
+be run as a stand-alone service.
 
-The mover copies data between combinations of COS and Kafka and applies transformations.
-It's built with extendability in mind so that custom data stores or transformations can be used.
-A description of data flows and data types can be found in the [mover matrix](Mover-matrix.md).
+The  mover copies  data  between  combinations of data stores, for example S3,Kafka,  and
+applies  transformations.  It's  built with  extendibility in  mind so
+that custom data stores or transformations can be used.  A description
+of the current  data flows and data  types can be found  in the [mover
+matrix](Mover-matrix.md).
 
 ## Using the latest image
 
-The CI pipeline of the mover builds an image regularly as new pull requests are merged and on a schedule so that
-possible security updates of the base image are applied.
+The CI pipeline of the mover builds an image regularly as new pull
+requests are merged and on a schedule so that possible security
+updates of the base image are applied.
 
 The latest image can be found at: `ghcr.io/the-mesh-for-data/mover:latest`
 
 ### Setting up a minimal movement only the-mesh-for-data version
 
-In order to test the mover image on a running K8s there is no need for a complete installation of [the-mesh-for-data](https://github.com/IBM/the-mesh-for-data).
-A narrowed down version that only supports the movement components can be installed using the [movement_controller.yaml](movement_controller.yaml) file.
+In order to test the mover image on a running K8s there is no need for
+a complete installation of [the-mesh-for-data](https://github.com/IBM/the-mesh-for-data).
+A cut down version that only supports the movement components can be
+installed using the [movement_controller.yaml](movement_controller.yaml) file.
 
-This will install a control component and the CRDs that allow to run movements. In order to install the yaml please follow these steps:
+This deployment will install a control component and the CRDs that allow the execution
+of data movements. In order to install the yaml please follow these steps:
 1. Make sure the cert-manager operator is installed. Either by installing via OpenShift UI or manually via `kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v0.13.1/cert-manager.yaml`
 2. Create a namespace: `kubectl create ns the-mesh-for-data`
 3. Run the install YAML file: `kubectl apply -f movement_controller.yaml`
