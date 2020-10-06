@@ -15,9 +15,11 @@ package com.ibm.m4d.mover
 import java.io.File
 
 import com.ibm.m4d.mover.datastore.cos.{COS, COSBuilder}
+import com.ibm.m4d.mover.datastore.local.{Local, LocalBuilder}
 import com.ibm.m4d.mover.spark._
 import com.ibm.m4d.mover.spark.SparkTest
 import com.typesafe.config.ConfigFactory
+import org.apache.commons.io.FileUtils
 import org.scalatest.matchers.should.Matchers
 
 /**
@@ -49,6 +51,26 @@ class AppTest extends ExtendedFunSuite with Matchers with SparkTest {
       // The original plants.parq file has 5 columns
       // The transferred one with the column filter should have 4
       df.schema.fieldNames should have size 4
+    }
+  }
+
+  test("run local-to-local") {
+    Transfer.main(Array("src/main/resources/local-to-local.conf"))
+
+    FileUtils.forceDeleteOnExit(new File("test.parq"))
+
+    val conf = ConfigFactory.parseFile(new File("src/main/resources/local-to-local.conf"))
+    val cos = new LocalBuilder().buildTarget(conf).get.asInstanceOf[Local]
+    withSparkSession { spark =>
+      val df = spark.read.parquet(cos.path)
+
+      df.schema.fieldNames should have size 2
+      val rows = df.collect().map(r => (r.getString(0), r.getDouble(1)))
+      rows should contain theSameElementsAs Seq(
+        ("XXXXXXXXXX", 1.0),
+        ("XXXXXXXXXX", 2.0),
+        ("XXXXXXXXXX", 3.0)
+      )
     }
   }
 }
