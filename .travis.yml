@@ -45,7 +45,7 @@ jobs:
         - docker load -i docker_images/images.tar || true
         - docker images
       script:
-        - docker build -t ghcr.io/the-mesh-for-data/spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark
+        - docker build -t spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark
         - docker images
         - mvn package jib:dockerBuild -DskipTests -Plocal-to-ghcr
       before_cache:
