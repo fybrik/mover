@@ -161,12 +161,12 @@ can be found [here](src/main/resources/test.conf.template)
 ### Troubleshooting
 When the job is not starting, shows errors about using uid ranges or shows permission errors like the following :
 
-1. `Caused by: java.nio.file.AccessDeniedException: ./mover-1.0-SNAPSHOT.jar`
+- `Caused by: java.nio.file.AccessDeniedException: ./mover-1.0-SNAPSHOT.jar`
 
 Add the anyuid policy to your service account:
 `oc adm policy add-scc-to-user anyuid -z default -n mover`
 
-2. When the job ends with 
+- When the job ends with 
 ```
 [Transfer$] Could not send finished event to Kubernetes!
 io.fabric8.kubernetes.client.KubernetesClientException: Failure executing: POST
