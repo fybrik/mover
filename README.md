@@ -2,35 +2,36 @@
 
 # Mover
 
-This is a  collection of data movement capabilities  that are intended
+This is a  collection of data movement capabilities intended
 as a building block that can  be integrated into a  variety of different
 control        planes.          They        are         used        in
 [the-mesh-for-data](https://github.com/IBM/the-mesh-for-data), but can
 be run as a stand-alone service.
 
-The  mover copies  data  between  combinations of data stores, for example S3,Kafka,  and
-applies  transformations.  It's  built with  extendibility in  mind so
-that custom data stores or transformations can be used.  A description
+The  mover copies  data  between any two supported data stores, for example S3 and Kafka,  and
+applies  transformations.  It's  built with  extensibility in  mind so
+that additional data stores or transformations can be used.  A description
 of the current  data flows and data  types can be found  in the [mover
 matrix](Mover-matrix.md).
 
 ## Using the latest image
 
-The CI pipeline of the mover builds an image regularly as new pull
-requests are merged and on a schedule so that possible security
+The CI pipeline of the mover builds an updated image as new pull
+requests are merged and on a schedule so that security
 updates of the base image are applied.
 
 The latest image can be found at: `ghcr.io/the-mesh-for-data/mover:latest`
 
 ### Setting up a minimal movement only the-mesh-for-data version
 
-In order to test the mover image on a running K8s there is no need for
+In order to test the mover image on a K8s cluster there is no need for
 a complete installation of [the-mesh-for-data](https://github.com/IBM/the-mesh-for-data).
-A cut down version that only supports the movement components can be
+A cut-down version that only supports the movement components can be
 installed using the [movement_controller.yaml](movement_controller.yaml) file.
 
 This deployment will install a control component and the CRDs that allow the execution
 of data movements. In order to install the yaml please follow these steps:
+
 1. Make sure the cert-manager operator is installed. Either by installing via OpenShift UI or manually via `kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v0.13.1/cert-manager.yaml`
 2. Create a namespace: `kubectl create ns the-mesh-for-data`
 3. Run the install YAML file: `kubectl apply -f movement_controller.yaml`
@@ -46,39 +47,35 @@ The Spark base image can be built locally with the following command:
 
 ```docker build -t spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark```
 
-After the base image is built the mover image can be build using:
+After the base image is finished the mover image can be built locally using:
 ```mvn package jib:dockerBuild -DskipTests -Plocal-to-ghcr```
 
-This will create the image locally. If a different image name and tag is preferred it can be specified with `-Djib.to.image=my_image:tag`.
+If a different image name and tag is preferred it can be specified with `-Djib.to.image=my_image:tag`.
 
 Afterwards it can be pushed to a registry using the `docker push` command.
 
-### Local building for use with local kind registry
+## Local testing with _kind_
+### Setting up _kind_
+*Tested on OSX with Docker 19.03.13 and kind 0.9.0*
 
-1. ```docker build -t spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark```
-2. ```mvn package jib:dockerBuild -DskipTests -Plocal-registry```
-
-## Local testing with kind
-### Setting up kind
-Tested on OSX with Docker 19.03.13 and kind 0.9.0
-Create the kind cluster
+Create the kind cluster:
 ```
 kind create cluster --name kind -v 4 --retain --wait=1m --config ./kind-config.yaml --image=kindest/node:v1.16.9
 ```
-Configure kind cluster to find registry
+Configure kind cluster to find registry:
 ```
 kubectl config use-context kind-kind
 for node in $(kind get nodes); do
     kubectl annotate node "${node}" "tilt.dev/registry=localhost:5000";
 done
 ```
-Create local registry
+Create local registry:
 ```
 docker run -d --restart=always -p "5000:5000" --name "kind-registry" registry:2
 docker network connect kind kind-registry
 ```
 
-### Building image and pushing to kind
+### Building image and pushing to _kind_
 ```
 docker build -t spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark
 mvn package jib:dockerBuild -DskipTests -Plocal-registry
@@ -89,10 +86,11 @@ docker push localhost:5000/the-mesh-for-data/mover:latest
 
 The BatchTransfer spec.image parameter has to be set to `localhost:5000/the-mesh-for-data/mover:latest`.
 
-## Local testing with minikube
-### Setting up the registry with minikube
-Tested with minikube v1.8.1.
-Minikube setup:
+## Local testing with _minikube_
+### Setting up the registry with _minikube_
+*Tested with minikube v1.8.1.*
+
+minikube setup:
 `minikube start --vm-driver=virtualbox --addons=registry --kubernetes-version v1.16.0 --memory=4000mb`
 
 Login to minikube using `minikube ssh` and run the following command to make sure that the image
@@ -100,10 +98,10 @@ registry is available for downloading images.
 
 `echo -e "127.0.0.1\timage-registry.openshift-image-registry.svc" | sudo tee -a /etc/hosts`
 
-* Point Docker environment to minikube's `eval $(minikube docker-env)`
+Point Docker environment to minikube's `eval $(minikube docker-env)`
 
 ### Building image and pushing to minikube
-Minikube is running in a VM and has a docker instance. This can be used to build and load images.
+minikube is running in a VM and has a docker instance. This can be used to build and load images.
 Make sure that your docker client is using minikube's docker environment: `eval $(minikube docker-env)`
 
 ```
@@ -113,7 +111,7 @@ mvn package jib:dockerBuild -DskipTests -Pdev
 
 ### Running images
 
-The BatchTransfer spec has to be adapted that the image and imagePullPolicy are changed.
+The BatchTransfer spec has to be adapted changing the image and imagePullPolicy.
 The image pull policy has to be `IfNotPresent` as no image should be pulled but the already available
 image in the local minikube docker should be used.
   
@@ -132,8 +130,8 @@ imagePullPolicy: "IfNotPresent"
 
 ### Building image and pushing to OpenShift
 
-In OpenShift it's important to push the images to the project that you want to use. So if the BatchTransfers
-should be used in namespace `default` the image should be available at `image-registry.openshift-image-registry.svc:5000/default/mover:latest`.
+In OpenShift it's important to push the images to the project where they will be used. So if the BatchTransfers
+are to be used in namespace `default` the image should be available internally at `image-registry.openshift-image-registry.svc:5000/default/mover:latest`.
 
 Note: OpenShift has external and internal URLs. To push the image from your local machine to e.g. an OpenShift
 in the cloud the external URL might be something like `image-registry-openshift-image-registry.demo-demo-deadbeef-0000.eu-de.containers.appdomain.cloud`
@@ -156,17 +154,21 @@ environment variable in the deployment of the controller.
 
 ## Running locally in the IDE
 
-A local app run can be done via the [AppTest](src/test/scala/com/ibm/m4d/mover/AppTest.scala) suite as well. Extend it with another test
- that is using a configuration of your choosing. A correct config file has to be put in a path. An example template configuration
+The app can be run locally via the [AppTest](src/test/scala/com/ibm/m4d/mover/AppTest.scala) suite as well. Extend it with another test
+ that is using a configuration of your choosing. A correct configuration file has to be put in a path. An example template configuration
 can be found [here](src/main/resources/test.conf.template)  
 
 ### Troubleshooting
-When the job is not starting or job shows permission errors like the following or errors about using uid ranges:
-possible errors: `Caused by: java.nio.file.AccessDeniedException: ./mover-1.0-SNAPSHOT.jar`
+When the job is not starting, shows errors about using uid ranges or shows permission errors like the following :
+
+1. `Caused by: java.nio.file.AccessDeniedException: ./mover-1.0-SNAPSHOT.jar`
 
 Add the anyuid policy to your service account:
-oc adm policy add-scc-to-user anyuid -z default -n mover
+`oc adm policy add-scc-to-user anyuid -z default -n mover`
 
-When the job ends with ```[Transfer$] Could not send finished event to Kubernetes!
-                          io.fabric8.kubernetes.client.KubernetesClientException: Failure executing: POST```
+2. When the job ends with 
+```
+[Transfer$] Could not send finished event to Kubernetes!
+io.fabric8.kubernetes.client.KubernetesClientException: Failure executing: POST
+```
 then the proper roles to create events are not defined in the namespace you are using. Please run `kubectl apply -f EventCreatorRole.yaml` 
