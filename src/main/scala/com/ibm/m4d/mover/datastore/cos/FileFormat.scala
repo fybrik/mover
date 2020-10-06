@@ -105,9 +105,19 @@ object FileFormat {
   }
 
   case object CSV extends FileFormat {
-    override def read(spark: SparkSession, path: String): DataFrame = spark.read.csv(path)
+    override def read(spark: SparkSession, path: String): DataFrame = {
+      spark.read.format("csv")
+        .option("header", "true")
+        .option("inferSchema", "true")
+        .load(path)
+    }
 
-    override def readStream(spark: SparkSession, path: String): DataFrame = spark.readStream.csv(path)
+    override def readStream(spark: SparkSession, path: String): DataFrame = {
+      spark.readStream.format("csv")
+        .option("header", "true")
+        .option("inferSchema", "true")
+        .load(path)
+    }
 
     override def write(df: DataFrame, path: String, writeOperation: WriteOperation, partitionBy: Seq[String]): Unit = {
       val saveMode = writeOperation match {
@@ -115,7 +125,9 @@ object FileFormat {
         case WriteOperation.Overwrite => SaveMode.Overwrite
         case WriteOperation.Update    => throw new IllegalArgumentException("Update operation not supported for batch!")
       }
-      setPartitions(df.write, partitionBy).mode(saveMode).csv(path)
+      setPartitions(df.write, partitionBy).mode(saveMode)
+        .format("csv")
+        .save(path)
     }
 
     override def writeStream(df: DataFrame, path: String, writeOperation: WriteOperation, partitionBy: Seq[String]): DataStreamWriter[Row] = {
