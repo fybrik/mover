@@ -50,13 +50,5 @@ RUN apk update --no-cache && \
  ln -s /sbin/tini /usr/bin/tini
 
 ENV SPARK_HOME /opt/spark
-WORKDIR /opt/spark/work-dir
-
-RUN addgroup --gid 1000 spark && \
-  adduser -u 1000 -G spark -H -D -s /bin/bash spark && \
-  mkdir -p /opt/spark/work-dir && \
-  chown spark:spark /opt/spark/work-dir
-
-USER spark
 
 ENTRYPOINT [ "/opt/entrypoint.sh" ]

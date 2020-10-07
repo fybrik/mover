@@ -50,7 +50,7 @@ object Transfer {
         "Please specify the path to the config file as only parameter!"
       )
     }
-    val config = CredentialSubstitutor.substituteCredentials(ConfigFactory.parseFile(new File(args(0))))
+    val config = CredentialSubstitutor.substituteCredentials(ConfigFactory.parseFile(new File(args(0))).resolve())
 
     val dataFlowType = if (config.hasPath("flowType")) {
       DataFlowType.parse(config.getString("flowType"))

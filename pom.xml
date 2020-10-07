@@ -53,41 +53,21 @@
 			<properties>
 				<base.image>docker://spark-base:${spark.version}</base.image>
 				<docker.repository>${project.artifactId}</docker.repository>
+				<image.label>latest</image.label>
 			</properties>
 		</profile>
 		<profile>
 			<id>local-registry</id>
 			<properties>
-				<base.image>docker://localhost:5000/the-mesh-for-data/spark-base:${spark.version}</base.image>
+				<base.image>docker://spark-base:${spark.version}</base.image>
 				<docker.repository>localhost:5000/the-mesh-for-data/${project.artifactId}</docker.repository>
 				<image.label>latest</image.label>
 			</properties>
 		</profile>
 		<profile>
-			<id>tekton-minikube</id>
-			<properties>
-				<base.image>registry.kube-system.svc.cluster.local:80/spark-base:2.4.5</base.image>
-				<docker.repository>registry.kube-system.svc.cluster.local:80/${project.artifactId}</docker.repository>
-			</properties>
-		</profile>
-		<profile>
-			<id>tekton-openshift</id>
-			<properties>
-				<base.image>docker://image-registry.openshift-image-registry.svc:5000/mover/spark-base:2.4.5</base.image>
-				<docker.repository>image-registry.openshift-image-registry.svc:5000/mover/${project.artifactId}</docker.repository>
-			</properties>
-		</profile>
-		<profile>
-			<id>openshift</id>
-			<properties>
-				<base.image>namespace/spark-base:${spark.version}</base.image>
-				<docker.repository>namespace/${project.artifactId}</docker.repository>
-			</properties>
-		</profile>
-		<profile>
 			<id>local-to-ibm-cloud</id>
 			<properties>
-				<base.image>docker://uk.icr.io/the-mesh-for-data/spark-base:${spark.version}</base.image>
+				<base.image>docker://spark-base:${spark.version}</base.image>
 				<docker.repository>uk.icr.io/the-mesh-for-data/${project.artifactId}</docker.repository>
 				<image.label>latest</image.label>
 			</properties>
@@ -95,7 +75,7 @@
 		<profile>
 			<id>local-to-ghcr</id>
 			<properties>
-				<base.image>docker://ghcr.io/the-mesh-for-data/spark-base:${spark.version}</base.image>
+				<base.image>docker://spark-base:${spark.version}</base.image>
 				<docker.repository>ghcr.io/the-mesh-for-data/${project.artifactId}</docker.repository>
 				<image.label>latest</image.label>
 			</properties>
