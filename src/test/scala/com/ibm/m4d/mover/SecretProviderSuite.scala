@@ -267,4 +267,51 @@ class SecretProviderSuite extends AnyFlatSpec with Matchers {
 
     server.shutdown()
   }
+
+  it should "substitute a configuration by just using the url (configured provider)" in {
+    // Mock dispatcher of a secret provider
+    val server = new MockWebServer
+    server.setDispatcher(dispatcher)
+    server.start()
+    val url = server.url("/get-secret")
+    val fullURL1 = HttpUrl.parse(url.toString).newBuilder()
+      .addQueryParameter("role", "myrole")
+      .addQueryParameter("secret_name", "/v1/hmac/bucket1")
+      .build()
+    val fullURL2 = HttpUrl.parse(url.toString).newBuilder()
+      .addQueryParameter("role", "myrole")
+      .addQueryParameter("secret_name", "/v1/db2/test2")
+      .build()
+    val subConfig = Map(
+      "a" -> "1",
+      "b" -> "2",
+      "vaultPath" -> fullURL2.toString
+    )
+    val config = ConfigFactory.empty()
+      .withValue("secretProviderURL", ConfigValueFactory.fromAnyRef(url.toString))
+      .withValue("secretProviderRole", ConfigValueFactory.fromAnyRef("myrole"))
+      .withValue("vaultPath", ConfigValueFactory.fromAnyRef(fullURL1.toString))
+      .withValue("sub", ConfigValueFactory.fromMap(subConfig.asJava))
+
+    val substitutedConfig = CredentialSubstitutor.substituteCredentials(config)
+
+    substitutedConfig.getString("accessKey") shouldBe "myak"
+    substitutedConfig.getString("secretKey") shouldBe "mysk"
+    substitutedConfig.getString("sub.password") shouldBe "mypwd"
+    substitutedConfig.hasPath("secretProviderURL") shouldBe false
+    substitutedConfig.hasPath("secretProviderRole") shouldBe false
+
+    server.getRequestCount shouldBe 2
+    val expectedRequestPaths = Seq(
+      "/get-secret?role=myrole&secret_name=%2Fv1%2Fhmac%2Fbucket1",
+      "/get-secret?role=myrole&secret_name=%2Fv1%2Fdb2%2Ftest2"
+    )
+
+    val request1 = server.takeRequest
+    Seq(request1.getPath) should contain oneElementOf(expectedRequestPaths)
+    val request2 = server.takeRequest
+    Seq(request2.getPath) should contain oneElementOf(expectedRequestPaths)
+
+    server.shutdown()
+  }
 }
