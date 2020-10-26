@@ -76,12 +76,17 @@ object SecretProviderSubstitutor {
 
 case class SecretProviderClient(secretProviderUrl: String, secretProviderRole: String) {
   def retrieveConfig(name: String): Config = {
-    val url = HttpUrl.parse(secretProviderUrl).newBuilder()
-      .addQueryParameter("role", secretProviderRole)
-      .addQueryParameter("secret_name", name)
-      .build()
+    val url = if (name.startsWith("http")) {
+      name
+    } else {
+      HttpUrl.parse(secretProviderUrl).newBuilder()
+        .addQueryParameter("role", secretProviderRole)
+        .addQueryParameter("secret_name", name)
+        .build()
+        .toString
+    }
 
-    SecretProviderClient.retrieveConfig(url.toString)
+    SecretProviderClient.retrieveConfig(url)
   }
 }
 
