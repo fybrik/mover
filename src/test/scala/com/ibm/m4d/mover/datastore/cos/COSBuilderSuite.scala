@@ -30,6 +30,8 @@ class COSBuilderSuite extends ExtendedFunSuite with Matchers {
         |    bucket = "bucket"
         |    objectKey = "ok"
         |    dataFormat = "parquet"
+        |    accessKey = "ak"
+        |    secretKey = "sk"
         |  }
         |}
         |destination {
@@ -38,6 +40,8 @@ class COSBuilderSuite extends ExtendedFunSuite with Matchers {
         |    bucket = "bucket"
         |    objectKey = "ok"
         |    dataFormat = "parquet"
+        |    access_key = "ak2"
+        |    secret_key = "sk2"
         |  }
         |}""".stripMargin
 
@@ -46,8 +50,12 @@ class COSBuilderSuite extends ExtendedFunSuite with Matchers {
     val targetDataStore = DataStoreBuilder.buildTarget(config)
     sourceDataStore.get shouldBe a[COS]
     sourceDataStore.get.asInstanceOf[COS].endpoint shouldBe "eps"
+    sourceDataStore.get.asInstanceOf[COS].accessKey shouldBe Some("ak")
+    sourceDataStore.get.asInstanceOf[COS].secretKey shouldBe Some("sk")
     targetDataStore.get shouldBe a[COS]
     targetDataStore.get.asInstanceOf[COS].endpoint shouldBe "ept"
+    targetDataStore.get.asInstanceOf[COS].accessKey shouldBe Some("ak2")
+    targetDataStore.get.asInstanceOf[COS].secretKey shouldBe Some("sk2")
 
     val s2 =
       """
