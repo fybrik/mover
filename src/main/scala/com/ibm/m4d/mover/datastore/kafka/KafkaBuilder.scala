@@ -56,8 +56,8 @@ case object KafkaBuilder extends DataStoreBuilder {
     Try(Kafka(
       iType,
       config.getString("kafkaBrokers"),
-      config.getString("user"),
-      config.getString("password"),
+      Try(config.getString("user")).getOrElse(""),
+      Try(config.getString("password")).getOrElse(""),
       config.getString("kafkaTopic"),
       ConfigUtils.opt(config, "schemaRegistryURL"),
       ConfigUtils.opt(config, "keySchema"),

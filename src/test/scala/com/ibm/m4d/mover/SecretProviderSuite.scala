@@ -308,9 +308,9 @@ class SecretProviderSuite extends AnyFlatSpec with Matchers {
     )
 
     val request1 = server.takeRequest
-    Seq(request1.getPath) should contain oneElementOf(expectedRequestPaths)
+    Seq(request1.getPath) should contain oneElementOf (expectedRequestPaths)
     val request2 = server.takeRequest
-    Seq(request2.getPath) should contain oneElementOf(expectedRequestPaths)
+    Seq(request2.getPath) should contain oneElementOf (expectedRequestPaths)
 
     server.shutdown()
   }

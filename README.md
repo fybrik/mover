@@ -82,6 +82,16 @@ mvn package jib:dockerBuild -DskipTests -Plocal-registry
 docker push localhost:5000/the-mesh-for-data/mover:latest
 ```
 
+### Testing with Kafka
+In order to develop/test against a Kafka environment the `setup_kafka.sh` method can be used in
+the kind environment. This will use the [strimzi operator](https://strimzi.io) to install a local Kafka
+cluster that can be used to read/write data to. This will expose the kafka cluster on port 30092 on your
+local machine and the schema registry for Kafka on port 30081. 
+An entry has to be added to your local /etc/hosts file so that `kafka0` maps to `127.0.0.1`:
+```
+127.0.0.1 kafka0
+``` 
+
 ### Running images
 
 The BatchTransfer spec.image parameter has to be set to `localhost:5000/the-mesh-for-data/mover:latest`.

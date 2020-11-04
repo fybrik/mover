@@ -186,6 +186,7 @@ object Transfer {
         throw e
     } finally {
       spark.stop()
+      sys.exit(0) // Somehow Spark3 does not stop by itself
     }
   }
 
