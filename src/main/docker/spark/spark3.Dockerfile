@@ -11,26 +11,16 @@
 # specific language governing permissions and limitations under the License.
 #
 
-FROM openjdk:11-jre-slim
+FROM adoptopenjdk/openjdk11:alpine-jre
+#FROM adoptopenjdk/openjdk11:ubi-minimal-jre
 ARG SPARK_VERSION=3.0.1
 #ARG HADOOP_VERSION=without-hadoop
 ARG HADOOP_VERSION=hadoop2.7
 
 ENV LANG=en_US.utf8
 
-RUN set -ex && \
-    apt-get update && \
-    ln -s /lib /lib64 && \
-    apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps && \
-    mkdir -p /opt/spark && \
-    touch /opt/spark/RELEASE && \
-    rm /bin/sh && \
-    ln -sv /bin/bash /bin/sh && \
-    echo "auth required pam_wheel.so use_uid" >> /etc/pam.d/su && \
-    chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \
-    rm -rf /var/cache/apt/*
-
-RUN apt-get update && apt-get install -y wget
+RUN apk update --no-cache && \
+ apk add bash tini
 
 # Download Spark and remove some of the unused dependencies like spark-mllib etc...
 RUN wget -q https://downloads.apache.org/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-${HADOOP_VERSION}.tgz && \
