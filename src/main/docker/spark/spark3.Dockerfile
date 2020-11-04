@@ -46,6 +46,20 @@ RUN wget -q https://downloads.apache.org/spark/spark-${SPARK_VERSION}/spark-${SP
     rm /opt/spark/jars/arpack_combined_all-0.1.jar && \
     rm /opt/spark/jars/breeze-macros_2.12-1.0.jar && \
     rm /opt/spark/jars/breeze_2.12-1.0.jar && \
+    rm /opt/spark/jars/hive-beeline-2.3.7.jar && \
+    rm /opt/spark/jars/hive-cli-2.3.7.jar && \
+    rm /opt/spark/jars/hive-common-2.3.7.jar && \
+    rm /opt/spark/jars/hive-exec-2.3.7-core.jar && \
+    rm /opt/spark/jars/hive-jdbc-2.3.7.jar && \
+    rm /opt/spark/jars/hive-llap-common-2.3.7.jar && \
+    rm /opt/spark/jars/hive-metastore-2.3.7.jar && \
+    rm /opt/spark/jars/hive-serde-2.3.7.jar && \
+    rm /opt/spark/jars/hive-shims-0.23-2.3.7.jar && \
+    rm /opt/spark/jars/hive-shims-2.3.7.jar && \
+    rm /opt/spark/jars/hive-shims-common-2.3.7.jar && \
+    rm /opt/spark/jars/hive-shims-scheduler-2.3.7.jar && \
+    rm /opt/spark/jars/hive-storage-api-2.7.1.jar && \
+    rm /opt/spark/jars/hive-vector-code-gen-2.3.7.jar && \
     rm /opt/spark/jars/core-1.1.2.jar && \
     rm /opt/spark/jars/opencsv-2.3.jar && \
     rm /opt/spark/jars/machinist_2.12-0.6.8.jar && \
