@@ -26,9 +26,9 @@ object KafkaPopulator extends SparkTest {
     withSparkSession { spark =>
       import spark.implicits._
 
-      val conf = ConfigFactory.parseFile(new File("src/main/resources/kafka-to-cos.conf"))
+      val conf = ConfigFactory.parseFile(new File("src/test/resources/local-to-kafka.conf"))
 
-      val kafka = KafkaBuilder.buildSource(conf).get.asInstanceOf[Kafka]
+      val kafka = KafkaBuilder.buildTarget(conf).get.asInstanceOf[Kafka]
 
       val data = Seq(
         TestClass(1, "1", "a", 1.0),
@@ -39,9 +39,6 @@ object KafkaPopulator extends SparkTest {
       val df = spark.createDataset(data).toDF()
         .setNullableStateOfColumn("i", nullable = false)
         .setNullableStateOfColumn("d", nullable = false)
-
-      val assetName = "DHUBDEMO"
-      val topic = assetName + ".demo.small.test"
 
       val kafkaDF = KafkaUtils.toKafkaWriteableDF(df, Seq(df("i")))
 

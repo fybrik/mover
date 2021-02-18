@@ -37,10 +37,25 @@ stages:
 jobs:
   include:
     - stage: test
+      env:
+        - SPARK_VERSION=2.4.7
+      jdk:
+        - openjdk8
       script:
         - mvn test -B
+    - stage: test
+      env:
+        - SPARK_VERSION=3.0.1
+      jdk:
+        - openjdk11
+      script:
+        - mvn test -B -Pspark3
     - stage: docker-build
       if: (branch = master)
+      env:
+        - SPARK_VERSION=2.4.7
+      jdk:
+        - openjdk8
       before_install:
         - docker load -i docker_images/images.tar || true
         - docker images
@@ -59,6 +74,29 @@ jobs:
         on:
           condition: $TRAVIS_PULL_REQUEST = false
           branch: master
-
+    - stage: docker-build
+      if: (branch = master)
+      env:
+        - SPARK_VERSION=3.0.1
+      jdk:
+        - openjdk11
+      before_install:
+        - docker load -i docker_images/images.tar || true
+        - docker images
+      script:
+        - docker build -t spark-base:3.0.1 -f src/main/docker/spark/Dockerfile src/main/docker/spark
+        - docker images
+        - mvn package jib:dockerBuild -DskipTests -Plocal-to-ghcr -Pspark3
+      before_cache:
+        - docker save -o docker_images/images.tar $(docker images -a -q)
+      before_deploy:
+        - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin "$DOCKER_HOSTNAME"
+      deploy:
+        skip_cleanup: true
+        provider: script
+        script: docker push ghcr.io/the-mesh-for-data/mover:latest-spark3
+        on:
+          condition: $TRAVIS_PULL_REQUEST = false
+          branch: master
 notifications:
   email: false
