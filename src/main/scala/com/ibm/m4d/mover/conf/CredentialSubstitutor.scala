@@ -38,6 +38,11 @@ trait CredentialSubstitutor {
       val configObject = config.getValue(key)
 
       configObject match {
+        case obj: ConfigObject if key.equals(substitutionKey) => // Struct key equals to substitution key
+          val newConf = substituteConfig(config)
+
+          config.withoutPath(substitutionKey)
+            .withFallback(newConf)
         case obj: ConfigObject => // If the key contains a struct recurse one level deeper
           val subConf = substitute(obj.toConfig)
           config.withValue(key, subConf.root())
@@ -50,7 +55,7 @@ trait CredentialSubstitutor {
           }
 
           config.withValue(key, ConfigValueFactory.fromIterable(newConfigValues.asJava))
-        case _ if key.equals(substitutionKey) => // Import secrets from a mounted directory
+        case _ if key.equals(substitutionKey) => // Field key equals to substitution key
           val newConf = substituteConfig(config)
 
           config.withoutPath(substitutionKey)
@@ -63,10 +68,15 @@ trait CredentialSubstitutor {
 
 object CredentialSubstitutor {
   def substituteCredentials(config: Config): Config = {
-    val secretProviderSubstitutor = new SecretProviderSubstitutor(config)
-    val secretImportSubstitutor = new SecretImportSubstitutor
-    val nConf = secretImportSubstitutor.substitute(config)
-    secretProviderSubstitutor.substitute(nConf)
+    val substitutors = Seq(
+      new SecretProviderSubstitutor(config),
+      new SecretImportSubstitutor,
+      new VaultSecretSubstitutor
+    )
+
+    val substitutedConfig = substitutors.foldLeft(config)((nConf, substitutor) => substitutor.substitute(nConf))
+
+    substitutedConfig
       .withoutPath(SecretProviderSubstitutor.SecretProviderUrlKey)
       .withoutPath(SecretProviderSubstitutor.SecretProviderRoleKey)
   }
