@@ -17,6 +17,8 @@ jobs:
   build-spark-2-4:
     name: Build Spark 2.4.x
     runs-on: ubuntu-latest
+    env:
+      SPARK_VERSION: 2.4.7
     steps:
       - uses: actions/checkout@v2
       - name: Set up JDK 1.8
@@ -45,9 +47,9 @@ jobs:
       - name: List images
         run: docker images
       - name: Build Spark base image
-        run: docker build -t spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark
+        run: docker build -t spark-base:${{ env.SPARK_VERSION }} -f src/main/docker/spark/Dockerfile src/main/docker/spark --cache-from spark-base:${{ env.SPARK_VERSION }}
       - name: Save Spark image to cache
-        run: docker save -o docker_images/spark.tar spark-base:2.4.7
+        run: docker save -o docker_images/spark.tar spark-base:${{ env.SPARK_VERSION }}
       - name: Build docker image with jib
         run: mvn -B jib:dockerBuild -Plocal-to-ghcr
       - name: Docker login
