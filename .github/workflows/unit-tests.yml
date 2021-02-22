@@ -27,7 +27,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: |
-            ~/.docker-images
+            docker-images
             ~/.m2
             ~/.zinc
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
@@ -35,13 +35,11 @@ jobs:
       - name: Build and test jars
         run: mvn -B package -Plocal-to-ghcr
       - name: Recover Spark image from cache
-        run: mkdir ~/.docker-images || docker load -i ~/.docker_images/spark.tar || true
-      - name: Ensure mkdir ~/.docker-images is there
-        run: mkdir -p ~/.docker-images || true
+        run: mkdir docker-images || docker load -i docker_images/spark.tar || true
       - name: Build Spark base image
         run: docker build -t spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark
       - name: Save Spark image to cache
-        run: docker save -o ~/.docker_images/spark.tar spark-base:2.4.7
+        run: mkdir -p docker-images || docker save -o docker_images/spark.tar spark-base:2.4.7
       - name: Build docker image with jib
         run: mvn -B jib:dockerBuild -Plocal-to-ghcr
       - name: Docker login
