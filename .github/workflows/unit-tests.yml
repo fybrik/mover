@@ -28,7 +28,7 @@ jobs:
         with:
           path: |
             docker-images
-            ~/.m2
+            ~/.m2/repository
             ~/.zinc
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
@@ -39,7 +39,7 @@ jobs:
       - name: Build Spark base image
         run: docker build -t spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark
       - name: Save Spark image to cache
-        run: mkdir -p docker-images || docker save -o docker_images/spark.tar spark-base:2.4.7
+        run: mkdir -p docker-images || docker save -o docker_images/spark.tar spark-base:2.4.7 || echo Hello
       - name: Build docker image with jib
         run: mvn -B jib:dockerBuild -Plocal-to-ghcr
       - name: Docker login
