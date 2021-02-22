@@ -33,9 +33,11 @@ jobs:
             ~/.m2/repository
             ~/.zinc
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}-docker${{ hashFiles('src/main/docker/spark/Dockerfile') }}
-          restore-keys: ${{ runner.os }}-m2
+#          restore-keys: ${{ runner.os }}-m2
       - name: Build and test jars
         run: mvn -B package -Plocal-to-ghcr
+      - name: Debug
+        run: ls -la docker_images
       - name: Recover Spark image from cache
         run: ci/load_spark_base_cache.sh
       - name: Build Spark base image
@@ -69,9 +71,11 @@ jobs:
             ~/.m2/repository
             ~/.zinc
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}-docker${{ hashFiles('src/main/docker/spark/spark3.Dockerfile') }}
-          restore-keys: ${{ runner.os }}-m2
+#          restore-keys: ${{ runner.os }}-m2
       - name: Build and test jars
         run: mvn -B package -Plocal-to-ghcr -Pspark3
+      - name: Debug
+        run: ls -la docker_images
       - name: Recover Spark image from cache
         run: ci/load_spark_base_cache.sh
       - name: Build Spark base image
