@@ -65,8 +65,8 @@ jobs:
         uses: actions/cache@v2
         with:
           path: |
-            ~/.m2
-            ~/.ivy2
+            docker_images
+            ~/.m2/repository
             ~/.zinc
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
