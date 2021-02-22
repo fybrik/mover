@@ -34,8 +34,16 @@ jobs:
           restore-keys: ${{ runner.os }}-m2
       - name: Build and test jars
         run: mvn -B package -Plocal-to-ghcr
+      - name: List images 1
+        run: docker images
+      - name: List files
+        run: ls -la
+      - name: List files in docker_images
+        run: ls -la docker_images
       - name: Recover Spark image from cache
         run: mkdir docker_images || docker load -i docker_images/spark.tar || true
+      - name: List images
+        run: docker images
       - name: Build Spark base image
         run: docker build -t spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark
       - name: Save Spark image to cache
