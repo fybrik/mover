@@ -23,11 +23,11 @@ jobs:
         with:
           java-version: 1.8
       - name: Hello
+        if: ${{ github.event_name != 'pull_request' }}
         run: echo Hello
-        if: ${{ github.event_name }} != "pull_request"
       - name: PR
+        if: ${{ github.event_name == 'pull_request' }}
         run: echo PR
-        if: ${{ github.event_name }} == "pull_request"
       - name: Cache Maven packages
         uses: actions/cache@v2
         with:
