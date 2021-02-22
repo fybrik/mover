@@ -11,7 +11,7 @@ on:
 env:
   DOCKER_HOSTNAME: ghcr.io
   DOCKER_USERNAME: the-mesh-for-data
-  ACTIVE_CI: travisci
+  ACTIVE_CI: travisci # This parameter defines which CI should push to the docker repository
 
 jobs:
   build-spark-2-4:
