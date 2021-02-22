@@ -36,6 +36,8 @@ jobs:
         run: mvn -B package -Plocal-to-ghcr
       - name: Recover Spark image from cache
         run: mkdir ~/.docker-images || docker load -i ~/.docker_images/spark.tar || true
+      - name: Ensure mkdir ~/.docker-images is there
+        run: mkdir -p ~/.docker-images || true
       - name: Build Spark base image
         run: docker build -t spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark
       - name: Save Spark image to cache
