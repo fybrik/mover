@@ -32,7 +32,7 @@ jobs:
             docker_images
             ~/.m2/repository
             ~/.zinc
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}-docker${{ hashFiles('src/main/docker/spark/Dockerfile') }}
           restore-keys: ${{ runner.os }}-m2
       - name: Build and test jars
         run: mvn -B package -Plocal-to-ghcr
@@ -68,7 +68,7 @@ jobs:
             docker_images
             ~/.m2/repository
             ~/.zinc
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml')-docker${{ hashFiles('src/main/docker/spark/spark3.Dockerfile') }}
           restore-keys: ${{ runner.os }}-m2
       - name: Build and test jars
         run: mvn -B package -Plocal-to-ghcr -Pspark3
