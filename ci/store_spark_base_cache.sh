@@ -4,6 +4,8 @@
 
 echo "Saving spark-base:$SPARK_VERSION to docker_images/spark-$SPARK_VERSION.tar..."
 
+rm docker_images/spark.tar
+
 newHash=$(docker inspect spark-base:$SPARK_VERSION --format {{.Id}})
 if [[ -f "docker_images/spark-$SPARK_VERSION.tar" ]]; then
   if [[ $(< docker_images/spark-$SPARK_VERSION.hash) != "$newHash" ]]; then
