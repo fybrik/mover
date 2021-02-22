@@ -37,7 +37,7 @@ jobs:
       - name: Build and test jars
         run: mvn -B package -Plocal-to-ghcr
       - name: Debug
-        run: ls -la docker_images
+        run: ls -la docker_images || true
       - name: Recover Spark image from cache
         run: ci/load_spark_base_cache.sh
       - name: Build Spark base image
@@ -75,7 +75,7 @@ jobs:
       - name: Build and test jars
         run: mvn -B package -Plocal-to-ghcr -Pspark3
       - name: Debug
-        run: ls -la docker_images
+        run: ls -la docker_images || true
       - name: Recover Spark image from cache
         run: ci/load_spark_base_cache.sh
       - name: Build Spark base image
