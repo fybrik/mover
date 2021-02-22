@@ -11,6 +11,7 @@ on:
 env:
   DOCKER_HOSTNAME: ghcr.io
   DOCKER_USERNAME: the-mesh-for-data
+  ACTIVE_CI: travisci
 
 jobs:
   build-spark-2-4:
@@ -22,18 +23,13 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
-      - name: Hello
-        if: ${{ github.event_name != 'pull_request' }}
-        run: echo Hello
-      - name: PR
-        if: ${{ github.event_name == 'pull_request' }}
-        run: echo PR
       - name: Cache Maven packages
         uses: actions/cache@v2
         with:
           path: |
             ~/.m2
             ~/.ivy2
+            ~/.zinc
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
       - name: Run test
@@ -42,11 +38,12 @@ jobs:
         run: docker build -t spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark
       - name: Build docker image with jib
         run: mvn -B package jib:dockerBuild -DskipTests -Plocal-to-ghcr
-        # Deactivated docker push until switch from Travis CI to Github Actions
-#      - name: Docker login
-#        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ env.DOCKER_USERNAME }}" --password-stdin "${{ env.DOCKER_HOSTNAME }}"
-#      - name: Docker push
-#        run: docker push ghcr.io/the-mesh-for-data/mover:latest
+      - name: Docker login
+        if: ${{ github.event_name != 'pull_request' && env.ACTIVE_CI == 'gh_actions' }}
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ env.DOCKER_USERNAME }}" --password-stdin "${{ env.DOCKER_HOSTNAME }}"
+      - name: Docker push
+        if: ${{ github.event_name != 'pull_request' && env.ACTIVE_CI == 'gh_actions' }}
+        run: docker push ghcr.io/the-mesh-for-data/mover:latest
 #  build-spark-3-0:
 #    name: Build Spark 3.x
 #    runs-on: ubuntu-latest
