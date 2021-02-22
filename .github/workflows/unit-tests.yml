@@ -22,12 +22,12 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
-      - name: Debug
-        run: echo ${{ github }}
-      - name: Debug2
-        run: echo ${{ github.event }}
-      - name: Debug3
-        run: echo ${{ github.event_name }}
+      - name: Hello
+        run: echo Hello
+        if: ${{ github.event_name }} != "pull_request"
+      - name: PR
+        run: echo PR
+        if: ${{ github.event_name }} == "pull_request"
       - name: Cache Maven packages
         uses: actions/cache@v2
         with:
