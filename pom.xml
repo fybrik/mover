@@ -84,7 +84,7 @@
 		<profile>
 			<id>spark3</id>
 			<properties>
-				<spark.version>3.0.1</spark.version>
+				<spark.version>3.0.2</spark.version>
 				<java.version>11</java.version>
 				<kubernets.client>4.9.2</kubernets.client>
 				<image.label>latest-spark3</image.label>

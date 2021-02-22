@@ -42,6 +42,6 @@ jobs:
       - name: Run test
         run: mvn -B test -Pspark3
       - name: Build Spark base image
-        run: docker build -t spark-base:3.0.1 -f src/main/docker/spark/spark3.Dockerfile src/main/docker/spark
+        run: docker build -t spark-base:3.0.2 -f src/main/docker/spark/spark3.Dockerfile src/main/docker/spark
       - name: Build docker image with jib
         run: mvn -B package jib:dockerBuild -DskipTests -Plocal-to-ghcr -Pspark3
