@@ -43,13 +43,13 @@ jobs:
       - name: List files in docker_images
         run: ls -la docker_images
       - name: Recover Spark image from cache
-        run: mkdir docker_images || docker load -i docker_images/spark.tar || true
+        run: ci/load_spark_base_cache.sh
       - name: List images
         run: docker images
       - name: Build Spark base image
         run: docker build -t spark-base:${{ env.SPARK_VERSION }} -f src/main/docker/spark/Dockerfile src/main/docker/spark --cache-from spark-base:${{ env.SPARK_VERSION }}
       - name: Save Spark image to cache
-        run: docker save -o docker_images/spark.tar spark-base:${{ env.SPARK_VERSION }}
+        run: ci/store_spark_base_cache.sh
       - name: Build docker image with jib
         run: mvn -B jib:dockerBuild -Plocal-to-ghcr
       - name: Docker login
