@@ -49,6 +49,8 @@ class VaultSecretSubstitutor extends CredentialSubstitutor {
       }
     }
 
+    // Remove key `vault` from configuration and add new key-value sets as
+    // fallback so they won't overwrite already existing values.
     config.withoutPath(VaultSecretSubstitutor.VaultConfigKey)
       .withFallback(newConf)
   }
@@ -71,16 +73,23 @@ object VaultClient {
 
   private val client = new OkHttpClient()
 
-  def readData(pathConfig: Config): Config = {
-    val address = pathConfig.getString(VaultAddress)
-    val role = pathConfig.getString(VaultRole)
-    val authPath = pathConfig.getString(VaultAuthPath)
-    val jwt = if (pathConfig.hasPath("jwt")) {
-      pathConfig.getString("jwt")
+  /**
+    * Given a configuration that contains parameters such as address, role, authPath and secretPath
+    * this method will return a configuration of values that are found at the given secretPath in the
+    * given Vault instance.
+    * @param vaultConfig Vault configuration
+    * @return
+    */
+  def readData(vaultConfig: Config): Config = {
+    val address = vaultConfig.getString(VaultAddress)
+    val role = vaultConfig.getString(VaultRole)
+    val authPath = vaultConfig.getString(VaultAuthPath)
+    val jwt = if (vaultConfig.hasPath("jwt")) {
+      vaultConfig.getString("jwt")
     } else {
       FileUtils.readFileToString(new File(DefaultServiceAccountTokenPath), Charset.defaultCharset)
     }
-    val secretPath = pathConfig.getString("secretPath")
+    val secretPath = vaultConfig.getString("secretPath")
 
     login(address, authPath, role, jwt) match {
       case Success(token) =>
