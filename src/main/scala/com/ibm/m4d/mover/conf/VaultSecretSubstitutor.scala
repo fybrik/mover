@@ -13,7 +13,6 @@
 package com.ibm.m4d.mover.conf
 
 import com.ibm.m4d.mover.ConfigException
-import com.ibm.m4d.mover.conf.SecretProviderSubstitutor.SecretSubstitutionKey
 import com.typesafe.config.{Config, ConfigFactory}
 import okhttp3._
 import org.apache.commons.io.FileUtils
@@ -41,7 +40,7 @@ class VaultSecretSubstitutor extends CredentialSubstitutor {
     if (newKeys.nonEmpty) {
       logger.info("Found credentials with keys: " + newKeys.mkString(","))
     } else {
-      logger.warn("No entries found in " + config.getString(SecretSubstitutionKey))
+      logger.warn("No entries found in Vault!")
     }
     for (newKey <- newKeys) {
       if (config.hasPath(newKey)) {
@@ -95,7 +94,7 @@ object VaultClient {
       case Success(token) =>
         read(address, token, secretPath)
       case Failure(e) =>
-        logger.error("Could not retrieve configuration!", e)
+        logger.error("Could not retrieve login token!", e)
         ConfigFactory.empty()
     }
   }
