@@ -41,3 +41,4 @@ object ConfigUtils {
   }
 }
 
+case class ConfigException(m: String) extends Exception(m)
