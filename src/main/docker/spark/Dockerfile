@@ -11,7 +11,7 @@
 # specific language governing permissions and limitations under the License.
 #
 
-FROM openjdk:8-jre-alpine
+FROM adoptopenjdk/openjdk8:alpine-jre
 ARG SPARK_VERSION=2.4.7
 ARG HADOOP_VERSION=2.7
 
@@ -45,8 +45,7 @@ RUN wget https://www-eu.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPA
     rm /opt/spark/jars/arpack_combined_all-0.1.jar
 
 RUN apk update --no-cache && \
- apk add bash libc6-compat tini && \
- ln -s /lib64/ld-linux-x86-64.so.2 /lib/ld-linux-x86-64.so.2 && \
+ apk add bash tini && \
  ln -s /sbin/tini /usr/bin/tini
 
 ENV SPARK_HOME /opt/spark
