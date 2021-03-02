@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - improve_jib_docker_push
   pull_request:
     branches:
       - master
@@ -17,11 +16,6 @@ jobs:
   build:
     name: Build Spark
     runs-on: ubuntu-latest
-    services:
-      registry:
-        image: registry:2
-        ports:
-          - 5000:5000
     strategy:
       matrix:
         include:
@@ -67,13 +61,9 @@ jobs:
       - name: Docker login
         if: ${{ github.event_name != 'pull_request' }}
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ env.DOCKER_USERNAME }}" --password-stdin "${{ env.DOCKER_HOSTNAME }}"
-      - run: docker images
       - name: Build docker image with jib
         if: ${{ github.event_name == 'pull_request' }}
         run: mvn -B jib:dockerBuild -Plocal-to-ghcr -P${{ matrix.PROFILE }}
       - name: Build and push docker image with jib
         if: ${{ github.event_name != 'pull_request' }}
-        run: mvn -B jib:build -Plocal-registry -P${{ matrix.PROFILE }}
-      - run: docker images
-      - run: docker pull localhost:5000/the-mesh-for-data/mover:${{ matrix.TAG }}
-      - run: docker images
+        run: mvn -B jib:build -Plocal-to-ghcr -P${{ matrix.PROFILE }}
