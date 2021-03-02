@@ -46,7 +46,7 @@ If you want to test with your own image make sure to update either the environme
 The following notes sketch out how to manually build the images.
 The Spark base image can be built locally with the following command:
 
-```docker build -t spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark```
+```docker build -t spark-base:2.4.7 -f src/main/docker/spark/spark2.Dockerfile src/main/docker/spark```
 
 After the base image is finished the mover image can be built locally using:
 ```mvn package jib:dockerBuild -DskipTests -Plocal-to-ghcr```
@@ -78,7 +78,7 @@ docker network connect kind kind-registry
 
 ### Building image and pushing to _kind_
 ```
-docker build -t spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark
+docker build -t spark-base:2.4.7 -f src/main/docker/spark/spark2.Dockerfile src/main/docker/spark
 mvn package jib:dockerBuild -DskipTests -Plocal-registry
 docker push localhost:5000/the-mesh-for-data/mover:latest
 ```
@@ -116,7 +116,7 @@ minikube is running in a VM and has a docker instance. This can be used to build
 Make sure that your docker client is using minikube's docker environment: `eval $(minikube docker-env)`
 
 ```
-docker build -t spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark
+docker build -t spark-base:2.4.7 -f src/main/docker/spark/spark2.Dockerfile src/main/docker/spark
 mvn package jib:dockerBuild -DskipTests -Pdev
 ```
 
@@ -150,7 +150,7 @@ while the internal URL where the images will be reachable is `image-registry.ope
 will be re-tagged automatically.
 
 ```
-docker build -t spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark
+docker build -t spark-base:2.4.7 -f src/main/docker/spark/spark2.Dockerfile src/main/docker/spark
 mvn package jib:dockerBuild -DskipTests -Djib.to.image=<your_registry>/<your_namespace>/mover:latest
 docker push <your_registry>/<your_namespace>/mover:latest
 ```
