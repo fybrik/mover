@@ -13,14 +13,45 @@ spec:
   replicas: 1
   template:
     metadata:
+      annotations:
+#        container.apparmor.security.beta.kubernetes.io/apicurio: runtime/default
       labels:
         app: apicurio
     spec:
       containers:
         - name: apicurio
           image: apicurio/apicurio-registry-mem:1.1.0.Final
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
+          resources:
+            limits:
+              cpu: 200m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /ccompat/subjects
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          securityContext:
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - mountPath: /tmp
+              name: tmp
+      volumes:
+      - name: tmp
+        emptyDir: {}
+
 ---
 apiVersion: v1
 kind: Service
