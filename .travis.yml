@@ -45,7 +45,7 @@ jobs:
         - mvn test -B
     - stage: test
       env:
-        - SPARK_VERSION=3.0.1
+        - SPARK_VERSION=3.0.2
       jdk:
         - openjdk11
       script:
@@ -77,14 +77,14 @@ jobs:
     - stage: docker-build
       if: (branch = master)
       env:
-        - SPARK_VERSION=3.0.1
+        - SPARK_VERSION=3.0.2
       jdk:
         - openjdk11
       before_install:
         - docker load -i docker_images/images.tar || true
         - docker images
       script:
-        - docker build -t spark-base:3.0.1 -f src/main/docker/spark/Dockerfile src/main/docker/spark
+        - docker build -t spark-base:3.0.2 -f src/main/docker/spark/Dockerfile src/main/docker/spark
         - docker images
         - mvn package jib:dockerBuild -DskipTests -Plocal-to-ghcr -Pspark3
       before_cache:

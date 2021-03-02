@@ -1,4 +1,5 @@
-[![Build Status](https://travis-ci.com/IBM/the-mesh-for-data-mover.svg?branch=master)](https://travis-ci.com/IBM/the-mesh-for-data-mover)
+[![Travis CI Build Status](https://travis-ci.com/IBM/the-mesh-for-data-mover.svg?branch=master)](https://travis-ci.com/IBM/the-mesh-for-data-mover)
+[![GitHub Actions Build](https://github.com/IBM/the-mesh-for-data-mover/actions/workflows/build.yml/badge.svg)](https://github.com/IBM/the-mesh-for-data-mover/actions/workflows/build.yml)
 
 # Mover
 

@@ -13,7 +13,7 @@
 
 FROM adoptopenjdk/openjdk11:alpine-jre
 #FROM adoptopenjdk/openjdk11:ubi-minimal-jre
-ARG SPARK_VERSION=3.0.1
+ARG SPARK_VERSION=3.0.2
 #ARG HADOOP_VERSION=without-hadoop
 ARG HADOOP_VERSION=hadoop2.7
 
