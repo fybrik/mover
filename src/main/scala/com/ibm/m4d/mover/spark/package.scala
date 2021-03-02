@@ -13,13 +13,13 @@
 package com.ibm.m4d.mover
 
 import com.google.common.base.Stopwatch
+import com.google.gson.{JsonParser, JsonPrimitive}
 import org.apache.hadoop.fs.Path
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.functions.col
 import org.apache.spark.sql.streaming.{DataStreamReader, DataStreamWriter}
 import org.apache.spark.sql.types.{DecimalType, Metadata, StringType, StructField, StructType, TimestampType}
 import org.apache.spark.sql.{DataFrame, DataFrameReader, DataFrameWriter}
-import org.json.JSONObject
 import org.slf4j.LoggerFactory
 
 /**
@@ -143,10 +143,10 @@ package object spark {
         df
       } else {
         val maybeStructField = df.schema.fields.find(_.name == colName)
-        val jsonObject = new JSONObject(maybeStructField.get.metadata.json)
-        jsonObject.put(COLUMN_TYPE_INFO, typeInfo.toUpperCase())
+        val jsonObject = new JsonParser().parse(maybeStructField.get.metadata.json).getAsJsonObject
+        jsonObject.add(COLUMN_TYPE_INFO, new JsonPrimitive(typeInfo.toUpperCase()))
 
-        df.withColumn(colName, col(colName).as(colName, Metadata.fromJson(jsonObject.toString())))
+        df.withColumn(colName, col(colName).as(colName, Metadata.fromJson(jsonObject.toString)))
       }
     }
 
@@ -155,8 +155,8 @@ package object spark {
       if (maybeStructField.isEmpty) {
         throw new IllegalArgumentException(s"Field '$colName' does not exist!")
       }
-      val jsonObject = new JSONObject(maybeStructField.get.metadata.json)
-      jsonObject.put(LENGTH, length)
+      val jsonObject = new JsonParser().parse(maybeStructField.get.metadata.json).getAsJsonObject
+      jsonObject.add(LENGTH, new JsonPrimitive(length))
 
       df.withColumn(colName, col(colName).as(colName, Metadata.fromJson(jsonObject.toString)))
     }
@@ -170,8 +170,8 @@ package object spark {
         throw new IllegalArgumentException(s"Field '$colName' is not of type StringType!")
       }
 
-      val jsonObject = new JSONObject(maybeStructField.get.metadata.json)
-      jsonObject.put(LENGTH, length)
+      val jsonObject = new JsonParser().parse(maybeStructField.get.metadata.json).getAsJsonObject
+      jsonObject.add(LENGTH, new JsonPrimitive(length))
 
       df.withColumn(colName, col(colName).as(colName, Metadata.fromJson(jsonObject.toString)))
     }
@@ -184,8 +184,8 @@ package object spark {
       if (maybeStructField.get.dataType != TimestampType) {
         throw new IllegalArgumentException(s"Field '$colName' is not of type TimestampType!")
       }
-      val jsonObject = new JSONObject(maybeStructField.get.metadata.json)
-      jsonObject.put(SCALE, scale)
+      val jsonObject = new JsonParser().parse(maybeStructField.get.metadata.json).getAsJsonObject
+      jsonObject.add(SCALE, new JsonPrimitive(scale))
 
       df.withColumn(colName, col(colName).as(colName, Metadata.fromJson(jsonObject.toString)))
     }
@@ -205,19 +205,19 @@ package object spark {
         df
       } else {
         val maybeStructField = df.schema.fields.find(_.name == colName)
-        val jsonObject = new JSONObject(maybeStructField.get.metadata.json)
-        jsonObject.put(COLUMN_TIMEZONE_INFO, timezone.toUpperCase())
+        val jsonObject = new JsonParser().parse(maybeStructField.get.metadata.json).getAsJsonObject
+        jsonObject.add(COLUMN_TIMEZONE_INFO, new JsonPrimitive(timezone.toUpperCase()))
 
-        df.withColumn(colName, col(colName).as(colName, Metadata.fromJson(jsonObject.toString())))
+        df.withColumn(colName, col(colName).as(colName, Metadata.fromJson(jsonObject.toString)))
       }
     }
 
     def withNullableInfo(colName: String, nullable: Boolean): DataFrame = {
       val maybeStructField = df.schema.fields.find(_.name == colName)
-      val jsonObject = new JSONObject(maybeStructField.get.metadata.json)
-      jsonObject.put(NULLABLE, nullable)
+      val jsonObject = new JsonParser().parse(maybeStructField.get.metadata.json).getAsJsonObject
+      jsonObject.add(NULLABLE, new JsonPrimitive(nullable))
 
-      df.withColumn(colName, col(colName).as(colName, Metadata.fromJson(jsonObject.toString())))
+      df.withColumn(colName, col(colName).as(colName, Metadata.fromJson(jsonObject.toString)))
     }
 
     def stripMetadata(): DataFrame = {

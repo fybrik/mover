@@ -12,11 +12,11 @@
   */
 package com.ibm.m4d.mover
 
+import com.google.gson.JsonParser
 import com.ibm.m4d.mover.conf.{CredentialSubstitutor, VaultClient, VaultSecretSubstitutor}
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import okhttp3.HttpUrl
 import okhttp3.mockwebserver.{Dispatcher, MockResponse, MockWebServer, RecordedRequest}
-import org.json.JSONObject
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -38,8 +38,8 @@ class VaultSuite extends AnyFlatSpec with Matchers {
       HttpUrl.parse(recordedRequest.getPath)
       recordedRequest.getRequestUrl.encodedPath() match {
         case LoginPath =>
-          val obj = new JSONObject(recordedRequest.getBody.readUtf8())
-          if (obj.getString("jwt").equals(Jwt)) {
+          val obj = new JsonParser().parse(recordedRequest.getBody.readUtf8()).getAsJsonObject
+          if (obj.getAsJsonPrimitive("jwt").getAsString.equals(Jwt)) {
             new MockResponse().setBody(FakeLogin)
           } else {
             new MockResponse().setResponseCode(401)
