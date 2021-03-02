@@ -408,7 +408,7 @@
 										<include>streaming-entrypoint.sh</include>
 									</includes>
 									<excludes>
-										<exclude>Dockerfile</exclude>
+										<exclude>*Dockerfile</exclude>
 										<exclude>spark*</exclude>
 									</excludes>
 								</resource>

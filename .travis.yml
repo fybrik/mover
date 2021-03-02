@@ -42,7 +42,7 @@ jobs:
       jdk:
         - openjdk8
       script:
-        - mvn test -B
+        - mvn test -B -Pspark2
     - stage: test
       env:
         - SPARK_VERSION=3.0.2
@@ -60,20 +60,20 @@ jobs:
         - docker load -i docker_images/images.tar || true
         - docker images
       script:
-        - docker build -t spark-base:2.4.7 -f src/main/docker/spark/Dockerfile src/main/docker/spark
+        - docker build -t spark-base:2.4.7 -f src/main/docker/spark/spark2.Dockerfile src/main/docker/spark
         - docker images
-        - mvn package jib:dockerBuild -DskipTests -Plocal-to-ghcr
+        - mvn package jib:dockerBuild -DskipTests -Plocal-to-ghcr -Pspark2
       before_cache:
         - docker save -o docker_images/images.tar $(docker images -a -q)
-      before_deploy:
-        - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin "$DOCKER_HOSTNAME"
-      deploy:
-        skip_cleanup: true
-        provider: script
-        script: docker push ghcr.io/the-mesh-for-data/mover:latest
-        on:
-          condition: $TRAVIS_PULL_REQUEST = false
-          branch: master
+#      before_deploy:
+#        - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin "$DOCKER_HOSTNAME"
+#      deploy:
+#        skip_cleanup: true
+#        provider: script
+#        script: docker push ghcr.io/the-mesh-for-data/mover:latest
+#        on:
+#          condition: $TRAVIS_PULL_REQUEST = false
+#          branch: master
     - stage: docker-build
       if: (branch = master)
       env:
@@ -84,19 +84,19 @@ jobs:
         - docker load -i docker_images/images.tar || true
         - docker images
       script:
-        - docker build -t spark-base:3.0.2 -f src/main/docker/spark/Dockerfile src/main/docker/spark
+        - docker build -t spark-base:3.0.2 -f src/main/docker/spark/spark3.Dockerfile src/main/docker/spark
         - docker images
         - mvn package jib:dockerBuild -DskipTests -Plocal-to-ghcr -Pspark3
       before_cache:
         - docker save -o docker_images/images.tar $(docker images -a -q)
-      before_deploy:
-        - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin "$DOCKER_HOSTNAME"
-      deploy:
-        skip_cleanup: true
-        provider: script
-        script: docker push ghcr.io/the-mesh-for-data/mover:latest-spark3
-        on:
-          condition: $TRAVIS_PULL_REQUEST = false
-          branch: master
+#      before_deploy:
+#        - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin "$DOCKER_HOSTNAME"
+#      deploy:
+#        skip_cleanup: true
+#        provider: script
+#        script: docker push ghcr.io/the-mesh-for-data/mover:latest-spark3
+#        on:
+#          condition: $TRAVIS_PULL_REQUEST = false
+#          branch: master
 notifications:
   email: false
