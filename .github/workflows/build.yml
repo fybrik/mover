@@ -21,19 +21,21 @@ jobs:
       matrix:
         include:
         - SPARK_VERSION: 2.4.7
+          JAVA_VERSION: 1.8
           MAVEN_PROFILE: spark2
           DOCKER_FILE: src/main/docker/spark/Dockerfile
           TAG: latest
         - SPARK_VERSION: 3.0.2
+          JAVA_VERSION: 11
           MAVEN_PROFILE: spark3
           DOCKER_FILE: src/main/docker/spark/spark3.Dockerfile
           TAG: latest-spark3
     steps:
       - uses: actions/checkout@v2
-      - name: Set up JDK 1.8
+      - name: Set up JDK ${{ matrix.JAVA_VERSION }}
         uses: actions/setup-java@v1
         with:
-          java-version: 1.8
+          java-version: ${{ matrix.JAVA_VERSION }}
       - name: Cache Maven packages
         uses: actions/cache@v2
         with:
