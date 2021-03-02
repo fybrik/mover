@@ -14,11 +14,20 @@ env:
   ACTIVE_CI: travisci # This parameter defines which CI should push to the docker repository
 
 jobs:
-  build-spark-2-4:
-    name: Build Spark 2.4.x
+  build:
+    name: Build Spark
     runs-on: ubuntu-latest
-    env:
-      SPARK_VERSION: 2.4.7
+    strategy:
+      matrix:
+        include:
+        - SPARK_VERSION: 2.4.7
+          MAVEN_PROFILE: spark2
+          DOCKER_FILE: src/main/docker/spark/Dockerfile
+          TAG: latest
+        - SPARK_VERSION: 3.0.2
+          MAVEN_PROFILE: spark3
+          DOCKER_FILE: src/main/docker/spark/spark3.Dockerfile
+          TAG: latest-spark3
     steps:
       - uses: actions/checkout@v2
       - name: Set up JDK 1.8
@@ -32,61 +41,29 @@ jobs:
             docker_images
             ~/.m2/repository
             ~/.zinc
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}-docker${{ hashFiles('src/main/docker/spark/Dockerfile') }}
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}-docker${{ hashFiles('src/main/docker/spark/*') }}
 #          restore-keys: ${{ runner.os }}-m2
       - name: Build and test jars
-        run: mvn -B package -Plocal-to-ghcr
+        run: mvn -B package -Plocal-to-ghcr -P${{ matrix.MAVEN_PROFILE }}
       - name: Debug
         run: ls -la docker_images || true
       - name: Recover Spark image from cache
+        env:
+          SPARK_VERSION: ${{ matrix.SPARK_VERSION }}
         run: ci/load_spark_base_cache.sh
       - name: Build Spark base image
-        run: docker build -t spark-base:${{ env.SPARK_VERSION }} -f src/main/docker/spark/Dockerfile src/main/docker/spark --cache-from spark-base:${{ env.SPARK_VERSION }}
+        env:
+          SPARK_VERSION: ${{ matrix.SPARK_VERSION }}
+        run: docker build -t spark-base:${{ matrix.SPARK_VERSION }} -f ${{ matrix.DOCKER_FILE }} src/main/docker/spark --cache-from spark-base:${{ matrix.SPARK_VERSION }}
       - name: Save Spark image to cache
+        env:
+          SPARK_VERSION: ${{ matrix.SPARK_VERSION }}
         run: ci/store_spark_base_cache.sh
       - name: Build docker image with jib
-        run: mvn -B jib:dockerBuild -Plocal-to-ghcr
+        run: mvn -B jib:dockerBuild -Plocal-to-ghcr -P${{ matrix.MAVEN_PROFILE }}
       - name: Docker login
         if: ${{ github.event_name != 'pull_request' && env.ACTIVE_CI == 'gh_actions' }}
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ env.DOCKER_USERNAME }}" --password-stdin "${{ env.DOCKER_HOSTNAME }}"
       - name: Docker push
         if: ${{ github.event_name != 'pull_request' && env.ACTIVE_CI == 'gh_actions' }}
-        run: docker push ghcr.io/the-mesh-for-data/mover:latest
-  build-spark-3-0:
-    name: Build Spark 3.x
-    runs-on: ubuntu-latest
-    env:
-      SPARK_VERSION: 3.0.2
-    steps:
-      - uses: actions/checkout@v2
-      - name: Set up JDK 11
-        uses: actions/setup-java@v1
-        with:
-          java-version: 11
-      - name: Cache Maven packages
-        uses: actions/cache@v2
-        with:
-          path: |
-            docker_images
-            ~/.m2/repository
-            ~/.zinc
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}-docker${{ hashFiles('src/main/docker/spark/spark3.Dockerfile') }}
-#          restore-keys: ${{ runner.os }}-m2
-      - name: Build and test jars
-        run: mvn -B package -Plocal-to-ghcr -Pspark3
-      - name: Debug
-        run: ls -la docker_images || true
-      - name: Recover Spark image from cache
-        run: ci/load_spark_base_cache.sh
-      - name: Build Spark base image
-        run: docker build -t spark-base:${{ env.SPARK_VERSION }} -f src/main/docker/spark/spark3.Dockerfile src/main/docker/spark --cache-from spark-base:${{ env.SPARK_VERSION }}
-      - name: Save Spark image to cache
-        run: ci/store_spark_base_cache.sh
-      - name: Build docker image with jib
-        run: mvn -B jib:dockerBuild -Plocal-to-ghcr -Pspark3
-      - name: Docker login
-        if: ${{ github.event_name != 'pull_request' && env.ACTIVE_CI == 'gh_actions' }}
-        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ env.DOCKER_USERNAME }}" --password-stdin "${{ env.DOCKER_HOSTNAME }}"
-      - name: Docker push
-        if: ${{ github.event_name != 'pull_request' && env.ACTIVE_CI == 'gh_actions' }}
-        run: docker push ghcr.io/the-mesh-for-data/mover:latest-spark3
+        run: docker push ghcr.io/the-mesh-for-data/mover:${{ matrix.TAG }}
