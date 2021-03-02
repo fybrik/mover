@@ -75,5 +75,5 @@ jobs:
         if: ${{ github.event_name != 'pull_request' }}
         run: mvn -B jib:build -Plocal-registry -P${{ matrix.PROFILE }}
       - run: docker images
-      - run: docker pull localhost:5000/the-mesh-for-data/mover:latest
+      - run: docker pull localhost:5000/the-mesh-for-data/mover:${{ matrix.TAG }}
       - run: docker images
