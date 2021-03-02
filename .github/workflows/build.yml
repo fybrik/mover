@@ -40,7 +40,7 @@ jobs:
             docker_images
             ~/.m2/repository
             ~/.zinc
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}-docker${{ hashFiles('src/main/docker/spark/*') }}
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}-docker-${{ hashFiles('src/main/docker/spark/*.Dockerfile') }}
 #          restore-keys: ${{ runner.os }}-m2
       - name: Build and test jars
         run: mvn -B package -Plocal-to-ghcr -P${{ matrix.PROFILE }}
@@ -58,11 +58,12 @@ jobs:
         env:
           SPARK_VERSION: ${{ matrix.SPARK_VERSION }}
         run: ci/store_spark_base_cache.sh
-      - name: Build docker image with jib
-        run: mvn -B jib:dockerBuild -Plocal-to-ghcr -P${{ matrix.PROFILE }}
       - name: Docker login
         if: ${{ github.event_name != 'pull_request' }}
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ env.DOCKER_USERNAME }}" --password-stdin "${{ env.DOCKER_HOSTNAME }}"
-      - name: Docker push
+      - name: Build docker image with jib
+        if: ${{ github.event_name == 'pull_request' }}
+        run: mvn -B jib:dockerBuild -Plocal-to-ghcr -P${{ matrix.PROFILE }}
+      - name: Build and push docker image with jib
         if: ${{ github.event_name != 'pull_request' }}
-        run: docker push ghcr.io/the-mesh-for-data/mover:${{ matrix.TAG }}
+        run: mvn -B jib:build -Plocal-to-ghcr -P${{ matrix.PROFILE }}
