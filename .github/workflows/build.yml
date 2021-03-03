@@ -40,6 +40,7 @@ jobs:
             docker_images
             ~/.m2/repository
             ~/.zinc
+            ~/.sbt
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}-docker${{ hashFiles('src/main/docker/spark/*') }}
 #          restore-keys: ${{ runner.os }}-m2
       - name: Build and test jars
