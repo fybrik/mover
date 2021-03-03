@@ -12,25 +12,24 @@
   */
 package com.ibm.m4d.mover.datastore.kafka
 
-import java.nio.ByteBuffer
-import java.security.InvalidParameterException
-import java.util.concurrent.ExecutionException
-import java.util.{Collections, Properties}
-
-import com.ibm.m4d.mover.spark.{SnapshotAggregator, _}
-import org.apache.avro.Schema
+import com.ibm.m4d.mover.spark._
 import org.apache.commons.lang.RandomStringUtils
 import org.apache.kafka.clients.admin.{AdminClient, AdminClientConfig}
 import org.apache.kafka.common.errors.TopicExistsException
-import org.apache.spark.sql.avro.SchemaConverters
 import org.apache.spark.sql.functions.{col, to_json}
 import org.apache.spark.sql.streaming.DataStreamWriter
 import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.slf4j.LoggerFactory
-import za.co.absa.abris.avro.functions.{from_avro, from_confluent_avro}
-import za.co.absa.abris.avro.read.confluent.{ConfluentConstants, SchemaManager, SchemaManagerFactory}
+import za.co.absa.abris.avro.functions.from_avro
+import za.co.absa.abris.avro.parsing.utils.AvroSchemaUtils
+import za.co.absa.abris.avro.read.confluent.{ConfluentConstants, SchemaManagerFactory}
+import za.co.absa.abris.avro.registry.SchemaSubject
+import za.co.absa.abris.config.{AbrisConfig, FromAvroConfig, ToAvroConfig}
 
+import java.nio.ByteBuffer
+import java.util.concurrent.ExecutionException
+import java.util.{Collections, Properties}
 import scala.collection.JavaConverters._
 import scala.util.Try
 
@@ -65,22 +64,11 @@ object KafkaUtils {
     }
   }
 
-  private def confluentRegistryConfigurationReading(schemaRegistryUrl: String, kafkaTopic: String, isKey: Boolean = false): Map[String, String] = {
-    if (isKey) {
-      Map(
-        SchemaManager.PARAM_SCHEMA_REGISTRY_URL -> schemaRegistryUrl,
-        SchemaManager.PARAM_SCHEMA_REGISTRY_TOPIC -> kafkaTopic,
-        SchemaManager.PARAM_KEY_SCHEMA_NAMING_STRATEGY -> SchemaManager.SchemaStorageNamingStrategies.TOPIC_NAME,
-        SchemaManager.PARAM_KEY_SCHEMA_ID -> "latest"
-      )
-    } else {
-      Map(
-        SchemaManager.PARAM_SCHEMA_REGISTRY_URL -> schemaRegistryUrl,
-        SchemaManager.PARAM_SCHEMA_REGISTRY_TOPIC -> kafkaTopic,
-        SchemaManager.PARAM_VALUE_SCHEMA_NAMING_STRATEGY -> SchemaManager.SchemaStorageNamingStrategies.TOPIC_NAME,
-        SchemaManager.PARAM_VALUE_SCHEMA_ID -> "latest",
-      )
-    }
+  private def confluentRegistryConfigurationReading(schemaRegistryUrl: String, kafkaTopic: String, isKey: Boolean = false): FromAvroConfig = {
+    AbrisConfig.fromConfluentAvro
+      .downloadReaderSchemaByLatestVersion
+      .andTopicNameStrategy(kafkaTopic, isKey = isKey)
+      .usingSchemaRegistry(schemaRegistryUrl)
   }
 
   def mapToValue(df: DataFrame): DataFrame = {
@@ -172,9 +160,14 @@ object KafkaUtils {
     val df = readFromKafkaRaw(spark, kafkaConfig)
 
     if (kafkaConfig.raw) {
-      val schemaRegistryConf = kafkaConfig.schemaRegistryURL
-        .map(registry => confluentRegistryConfigurationReading(registry, kafkaConfig.kafkaTopic))
-        .getOrElse(Map.empty[String, String])
+      val (keyConf, valueConf) = kafkaConfig.schemaRegistryURL match {
+        case Some(url) =>
+          (
+            confluentRegistryConfigurationReading(url, kafkaConfig.kafkaTopic, isKey = true),
+            confluentRegistryConfigurationReading(url, kafkaConfig.kafkaTopic, isKey = true)
+          )
+        case None => throw new IllegalArgumentException("Please define registry to debug!")
+      }
 
       val extractConfluentSchemaID = (bytes: Array[Byte]) => {
         val buffer = ByteBuffer.wrap(bytes)
@@ -187,8 +180,8 @@ object KafkaUtils {
 
       val extractSchemaID = org.apache.spark.sql.functions.udf(extractConfluentSchemaID, IntegerType)
 
-      df.withColumn("data_key", from_confluent_avro(col("key"), schemaRegistryConf))
-        .withColumn("data_value", from_confluent_avro(col("value"), schemaRegistryConf))
+      df.withColumn("data_key", from_avro(col("key"), keyConf))
+        .withColumn("data_value", from_avro(col("value"), valueConf))
         .withColumn("key_schema_id", extractSchemaID(col("key")))
         .withColumn("value_schema_id", extractSchemaID(col("value")))
     } else {
@@ -205,10 +198,10 @@ object KafkaUtils {
       case SerializationFormat.Avro =>
         (kafkaConfig.schemaRegistryURL, kafkaConfig.keySchema, kafkaConfig.valueSchema) match {
           case (Some(registry), None, None) => // Load schema from confluent registry
-            val schemaRegistryConfKey = confluentRegistryConfigurationReading(registry, kafkaConfig.kafkaTopic, isKey = true)
-            val schemaRegistryConfValue = confluentRegistryConfigurationReading(registry, kafkaConfig.kafkaTopic, isKey = false)
-            df.withColumn("key", from_confluent_avro(col("key"), schemaRegistryConfKey).as("key"))
-              .withColumn("value", from_confluent_avro(col("value"), schemaRegistryConfValue).as("value"))
+            val keyConf = confluentRegistryConfigurationReading(registry, kafkaConfig.kafkaTopic, isKey = true)
+            val valueConf = confluentRegistryConfigurationReading(registry, kafkaConfig.kafkaTopic, isKey = false)
+            df.withColumn("key", from_avro(col("key"), keyConf).as("key"))
+              .withColumn("value", from_avro(col("value"), valueConf).as("value"))
 
           case (None, None, Some(valueSchema)) => // se schema that is specified in valueSchema
             df.withColumn("value", from_avro(col("value"), valueSchema).as("value"))
@@ -221,59 +214,27 @@ object KafkaUtils {
         }
 
       case SerializationFormat.JSON =>
-        (kafkaConfig.schemaRegistryURL, kafkaConfig.keySchema, kafkaConfig.valueSchema) match {
-          case (Some(registry), None, None) => // Load schema from confluent registry
-            val schemaRegistryConfKey = confluentRegistryConfigurationReading(registry, kafkaConfig.kafkaTopic, isKey = true)
-            val schemaRegistryConfValue = confluentRegistryConfigurationReading(registry, kafkaConfig.kafkaTopic, isKey = false)
-            val keyAvroSchema = loadSchemaFromRegistry(schemaRegistryConfKey)
-            val valueAvroSchema = loadSchemaFromRegistry(schemaRegistryConfValue)
-            val keyDataType = SchemaConverters.toSqlType(keyAvroSchema).dataType
-            val valueDataType = SchemaConverters.toSqlType(valueAvroSchema).dataType
-            df.withColumn("key", from_json(df("key").cast(StringType), keyDataType).as("key"))
-              .withColumn("value", from_json(df("value").cast(StringType), valueDataType).as("value"))
-
-          case (None, None, Some(valueSchema)) => // Use schema that is specified in valueSchema
+        (kafkaConfig.keySchema, kafkaConfig.valueSchema) match {
+          case (None, Some(valueSchema)) => // Use schema that is specified in valueSchema
             // TODO support multiple schema formats?
             df.withColumn("value", from_json(df("value").cast(StringType), valueSchema, Map.empty[String, String]).as("value"))
 
-          case (None, Some(keySchema), Some(valueSchema)) => // Use schema that is specified in valueSchema
+          case (Some(keySchema), Some(valueSchema)) => // Use schema that is specified in valueSchema
             // TODO support multiple schema formats?
             df.withColumn("key", from_json(df("key").cast(StringType), keySchema, Map.empty[String, String]).as("key"))
               .withColumn("value", from_json(df("value").cast(StringType), valueSchema, Map.empty[String, String]).as("value"))
 
-          case (None, None, None) => // Infer schema from first row
+          case (None, None) => // Infer schema from first row
             val firstRow = df.select(df("value").cast(StringType)).head().getAs[String](0)
             val schema = df.select(schema_of_json(firstRow)).head().getAs[String](0)
             df.withColumn("value", from_json(df("value").cast(StringType), schema, Map.empty[String, String]).as("value"))
 
-          case (_, _, _) => throw new IllegalArgumentException("Case not supported!")
+          case (_, _) => throw new IllegalArgumentException("Case not supported!")
         }
       case _ => throw new IllegalArgumentException("Data type not supported for Kafka!")
     }
 
     sparkDF
-  }
-
-  private def loadSchemaFromRegistry(registryConfig: Map[String, String]): Schema = {
-    val valueStrategy = registryConfig.get(SchemaManager.PARAM_VALUE_SCHEMA_NAMING_STRATEGY)
-    val keyStrategy = registryConfig.get(SchemaManager.PARAM_KEY_SCHEMA_NAMING_STRATEGY)
-
-    (valueStrategy, keyStrategy) match {
-      case (Some(valueStrategy), None) =>
-        SchemaManagerFactory.create(registryConfig).downloadSchema()
-      case (None, Some(keyStrategy)) =>
-        SchemaManagerFactory.create(registryConfig).downloadSchema()
-      case (Some(_), Some(_)) =>
-        throw new InvalidParameterException(
-          "Both key.schema.naming.strategy and value.schema.naming.strategy were defined. " +
-            "Only one of them supposed to be defined!"
-        )
-      case _ =>
-        throw new InvalidParameterException(
-          "At least one of key.schema.naming.strategy or value.schema.naming.strategy " +
-            "must be defined to use schema registry!"
-        )
-    }
   }
 
   def toKafkaWriteableDF(df: DataFrame, keyColumns: Seq[org.apache.spark.sql.Column], noKey: Boolean = false): DataFrame = {
@@ -342,32 +303,40 @@ object KafkaUtils {
     }
   }
 
+  private[kafka] def registerSchemaForColumn(
+      df: DataFrame,
+      schemaRegistryUrl: String,
+      kafkaTopic: String,
+      columnName: String
+  ): ToAvroConfig = {
+    val schemaRegistryClientConfig = Map(AbrisConfig.SCHEMA_REGISTRY_URL -> schemaRegistryUrl)
+    val schemaManager = SchemaManagerFactory.create(schemaRegistryClientConfig)
+
+    val schema = AvroSchemaUtils.
+      toAvroSchema(df, columnName, "name", "namespace")
+    val subject = SchemaSubject.
+      usingTopicNameStrategy(kafkaTopic, isKey = columnName.equalsIgnoreCase("key"))
+    val schemaId = schemaManager.getIfExistsOrElseRegisterSchema(schema, subject)
+
+    AbrisConfig
+      .toConfluentAvro
+      .downloadSchemaById(schemaId)
+      .usingSchemaRegistry(schemaRegistryUrl)
+  }
+
   private[kafka] def catalystToKafka(df: DataFrame, kafkaConfig: Kafka): DataFrame = {
-    import za.co.absa.abris.avro.functions.{to_avro, to_confluent_avro}
-
-    val schemaRegistryConfs = Map(
-      SchemaManager.PARAM_SCHEMA_REGISTRY_URL -> kafkaConfig.schemaRegistryURL.getOrElse(""),
-      SchemaManager.PARAM_SCHEMA_REGISTRY_TOPIC -> kafkaConfig.kafkaTopic,
-      SchemaManager.PARAM_KEY_SCHEMA_NAMESPACE_FOR_RECORD_STRATEGY -> kafkaConfig.kafkaTopic,
-      SchemaManager.PARAM_KEY_SCHEMA_NAME_FOR_RECORD_STRATEGY -> "Key",
-      SchemaManager.PARAM_VALUE_SCHEMA_NAMESPACE_FOR_RECORD_STRATEGY -> kafkaConfig.kafkaTopic,
-      SchemaManager.PARAM_VALUE_SCHEMA_NAME_FOR_RECORD_STRATEGY -> "Value",
-    )
-
-    val valueRegistryConfig = schemaRegistryConfs +
-      (SchemaManager.PARAM_VALUE_SCHEMA_NAMING_STRATEGY -> SchemaManager.SchemaStorageNamingStrategies.TOPIC_NAME)
-
-    val keyRegistryConfig = schemaRegistryConfs +
-      (SchemaManager.PARAM_KEY_SCHEMA_NAMING_STRATEGY -> SchemaManager.SchemaStorageNamingStrategies.TOPIC_NAME)
+    import za.co.absa.abris.avro.functions.to_avro
 
     if (df.schema.fieldNames.contains("key")) {
       kafkaConfig.serializationFormat match {
         case SerializationFormat.Avro =>
           (kafkaConfig.schemaRegistryURL, kafkaConfig.keySchema, kafkaConfig.valueSchema) match {
-            case (Some(_), None, None) =>
+            case (Some(url), None, None) =>
+              val keyConfig = registerSchemaForColumn(df, url, kafkaConfig.kafkaTopic, "key")
+              val valueConfig = registerSchemaForColumn(df, url, kafkaConfig.kafkaTopic, "value")
               df.select(
-                to_confluent_avro(df("key"), keyRegistryConfig).as("key"),
-                to_confluent_avro(df("value"), valueRegistryConfig).as("value")
+                to_avro(df("key"), keyConfig).as("key"),
+                to_avro(df("value"), valueConfig).as("value")
               )
             case (None, Some(keySchema), Some(valueSchema)) =>
               df.select(
@@ -375,52 +344,38 @@ object KafkaUtils {
                 to_avro(df("value"), valueSchema).as("value")
               )
             case (None, None, None) =>
+              val keySchema = AvroSchemaUtils.toAvroSchema(df, "key", "key", kafkaConfig.kafkaTopic)
+              val valueSchema = AvroSchemaUtils.toAvroSchema(df, "value", "value", kafkaConfig.kafkaTopic)
+
               df.select(
-                to_avro(df("key")).as("key"),
-                to_avro(df("value")).as("value")
+                to_avro(df("key"), keySchema.toString).as("key"),
+                to_avro(df("value"), valueSchema.toString).as("value")
               )
             case (_, _, _) => throw new IllegalArgumentException("Need to specify either schema registry, schema or nothing!")
           }
 
         case SerializationFormat.JSON =>
           import org.apache.spark.sql.functions.to_json
-          val serializedDF = df.select(to_json(df("key")).as("key"), to_json(df("value")).as("value"))
-          kafkaConfig.schemaRegistryURL match {
-            case Some(registry) => // Write key value schemas to schema registry
-              val keyRegistryManager = SchemaManagerFactory.create(keyRegistryConfig)
-              val valueRegistryManager = SchemaManagerFactory.create(valueRegistryConfig)
-              val keySchema = SchemaConverters.toAvroType(df.schema.fields(df.schema.fieldIndex("key")).dataType, nullable = false, recordName = "Key", nameSpace = kafkaConfig.kafkaTopic)
-              val valueSchema = SchemaConverters.toAvroType(df.schema.fields(df.schema.fieldIndex("value")).dataType, nullable = false, recordName = "Value", nameSpace = kafkaConfig.kafkaTopic)
-              keyRegistryManager.register(keySchema)
-              valueRegistryManager.register(valueSchema)
-            case None => // Nothing to do
-          }
-          serializedDF
+          df.select(to_json(df("key")).as("key"), to_json(df("value")).as("value"))
         case _ => throw new IllegalArgumentException("Not supported as Kafka format!")
       }
     } else {
       kafkaConfig.serializationFormat match {
         case SerializationFormat.Avro =>
           (kafkaConfig.schemaRegistryURL, kafkaConfig.valueSchema) match {
-            case (Some(_), None) =>
-              df.select(to_confluent_avro(df("value"), valueRegistryConfig).as("value"))
+            case (Some(url), None) =>
+              val valueConfig = registerSchemaForColumn(df, url, kafkaConfig.kafkaTopic, "value")
+              df.select(to_avro(df("value"), valueConfig).as("value"))
             case (None, Some(valueSchema)) =>
               df.select(to_avro(df("value"), valueSchema).as("value"))
             case (None, None) =>
-              df.select(to_avro(df("value")).as("value"))
+              val valueSchema = AvroSchemaUtils.toAvroSchema(df, "value", "value", kafkaConfig.kafkaTopic)
+              df.select(to_avro(df("value"), valueSchema.toString).as("value"))
             case (_, _) => throw new IllegalArgumentException("Need to specify either schema registry, schema or nothing!")
           }
 
         case SerializationFormat.JSON =>
-          val serializedDF = df.select(to_json(df("value")).as("value"))
-          kafkaConfig.schemaRegistryURL match {
-            case Some(registry) => // Write key value schemas to schema registry
-              val valueRegistryManager = SchemaManagerFactory.create(valueRegistryConfig)
-              val valueSchema = SchemaConverters.toAvroType(df.schema.fields(df.schema.fieldIndex("value")).dataType, nullable = false, recordName = "Value", nameSpace = kafkaConfig.kafkaTopic)
-              valueRegistryManager.register(valueSchema)
-            case None => // Nothing to do
-          }
-          serializedDF
+          df.select(to_json(df("value")).as("value"))
         case _ => throw new IllegalArgumentException("Not supported as Kafka format!")
       }
     }
