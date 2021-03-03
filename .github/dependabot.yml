@@ -4,7 +4,18 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    reviewers:
+      - "froesef"
+    ignore:
+      - dependency-name: "io.confluent:kafka-schema-registry"
+      - dependency-name: "io.confluent:kafka-rest"
+      - dependency-name: "com.amazonaws:*"
+      - dependency-name: "org.apache.hadoop:*"
+      - dependency-name: "org.apache.kafka:kafka-clients"
+      - dependency-name: "io.fabric8:kubernetes-client"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "daily"
+    reviewers:
+      - "froesef"
