@@ -4,7 +4,20 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    default_reviewers:
+      - "froesef"
+    ignored_updates:
+      - match:
+          dependency_name: "io.confluent:kafka-schema-registry"
+      - match:
+          dependency_name: "io.confluent:kafka-rest"
+      - match:
+          dependency_name: "com.amazonaws:*"
+      - match:
+          dependency_name: "org.apache.hadoop:*"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "daily"
+    default_reviewers:
+      - "froesef"
