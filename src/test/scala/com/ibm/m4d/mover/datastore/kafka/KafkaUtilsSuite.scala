@@ -53,11 +53,12 @@ class KafkaUtilsSuite extends ExtendedFunSuite with SparkTest with Matchers {
       new Schema.Parser().parse(schema)
     }
   }
+
   private val dispatcher = new Dispatcher() {
-    val subjectVersion = "/subjects/([0-9a-zA-Z-]+)/versions/([0-9a-zA-Z-]+)".r
-    val subject = "/subjects/([0-9a-zA-Z-]+)/versions".r
-    val schemas = "/schemas/ids/([0-9a-zA-Z-]+)".r
-    val compatibility = "/compatibility/subjects/([0-9a-zA-Z-]+)/versions/([0-9a-zA-Z-]+)".r
+    private val subjectVersion = "/subjects/([0-9a-zA-Z-]+)/versions/([0-9a-zA-Z-]+)".r
+    private val subject = "/subjects/([0-9a-zA-Z-]+)/versions".r
+    private val schemas = "/schemas/ids/([0-9a-zA-Z-]+)".r
+    private val compatibility = "/compatibility/subjects/([0-9a-zA-Z-]+)/versions/([0-9a-zA-Z-]+)".r
     val cacheBySubject = new mutable.HashMap[String, mutable.HashMap[Int, SchemaVersion]]
     def maxId: Int = {
       if (cacheBySubject.isEmpty) {
@@ -374,61 +375,5 @@ class KafkaUtilsSuite extends ExtendedFunSuite with SparkTest with Matchers {
 
       deserializedValues should contain theSameElementsAs records
     }
-  }
-
-  test("test serde with json schema and registry") {
-    val server = new MockWebServer
-    dispatcher.cacheBySubject.clear()
-    server.setDispatcher(dispatcher)
-    server.start()
-    val url = server.url("/")
-
-    withSparkSession { spark =>
-      import spark.implicits._
-      val records = Seq(
-        MyClass(1, "a", 1.0),
-        MyClass(2, "b", 2.0),
-        MyClass(3, "c", 3.0)
-      )
-
-      val refDF = spark.createDataFrame(records)
-
-      val keySchema = refDF.select("i").schema.json
-      val valueSchema = refDF.schema.json
-
-      val kafkaConfig = new Kafka(
-        Source,
-        "localhost:9091",
-        "",
-        "",
-        "topic",
-        Some(url.toString),
-        None,
-        None,
-        false,
-        false,
-        JSON
-      )
-
-      val kafkaDF = KafkaUtils.toKafkaWriteableDF(refDF, Seq(refDF("i")))
-      val kafkaSerializedDF = KafkaUtils.catalystToKafka(kafkaDF, kafkaConfig)
-
-      //simulate write
-      val rows = kafkaSerializedDF.collect()
-
-      val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig)
-
-      val deserializedRows = kafkaDeserializedDF.collect()
-
-      deserializedRows should have size 3
-
-      val deserializedValues = KafkaUtils.mapToValue(kafkaDeserializedDF).as[MyClass].collect()
-
-      deserializedValues should contain theSameElementsAs records
-      dispatcher.cacheBySubject.keySet should contain theSameElementsAs Seq("topic-key", "topic-value")
-      dispatcher.maxId shouldBe 2
-      dispatcher.cacheBySubject.values.map(_.size).sum shouldBe 2
-    }
-    server.shutdown()
   }
 }
