@@ -15,6 +15,10 @@ updates:
           dependency_name: "com.amazonaws:*"
       - match:
           dependency_name: "org.apache.hadoop:*"
+      - match:
+          dependency_name: "org.apache.kafka:kafka-clients"
+      - match:
+          dependency_name: "io.fabric8:kubernetes-client"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
