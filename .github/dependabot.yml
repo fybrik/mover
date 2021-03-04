@@ -13,6 +13,7 @@ updates:
       - dependency-name: "org.apache.hadoop:*"
       - dependency-name: "org.apache.kafka:kafka-clients"
       - dependency-name: "io.fabric8:kubernetes-client"
+      - dependency-name: "org.jacoco:jacoco-maven-plugin"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

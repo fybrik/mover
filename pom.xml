@@ -88,6 +88,7 @@
 				<java.version>1.8</java.version>
 				<kubernets.client>4.6.0</kubernets.client>
 				<image.label>latest</image.label>
+				<jacoco.plugin.version>0.7.4.201502262128</jacoco.plugin.version>
 			</properties>
 		</profile>
 		<profile>
@@ -97,6 +98,7 @@
 				<java.version>11</java.version>
 				<kubernets.client>4.9.2</kubernets.client>
 				<image.label>latest-spark3</image.label>
+				<jacoco.plugin.version>0.8.6</jacoco.plugin.version>
 			</properties>
 		</profile>
 	</profiles>
@@ -440,7 +442,6 @@
 					<scalaVersion>${scala.version}</scalaVersion>
 					<scalaCompatVersion>${scala.compat.version}</scalaCompatVersion>
 					<recompileMode>incremental</recompileMode>
-					<useZincServer>${useZinc}</useZincServer>
 					<args>
 						<arg>-unchecked</arg>
 						<arg>-deprecation</arg>
@@ -486,14 +487,33 @@
 					<reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
 					<junitxml>.</junitxml>
 					<filereports>TestSuite.txt</filereports>
-<!--					<testFailureIgnore>true</testFailureIgnore>-->
-					<stderr/>
+					<skipTests>${skipTests}</skipTests>
 				</configuration>
 				<executions>
 					<execution>
 						<phase>test</phase>
 						<goals>
 							<goal>test</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>${jacoco.plugin.version}</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>report</id>
+						<phase>test</phase>
+						<goals>
+							<goal>report</goal>
 						</goals>
 					</execution>
 				</executions>
