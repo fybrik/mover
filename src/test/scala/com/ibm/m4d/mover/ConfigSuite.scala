@@ -99,4 +99,11 @@ class ConfigSuite extends AnyFlatSpec with Matchers {
     DataType.parse("cdc") shouldBe DataType.ChangeData
     intercept[IllegalArgumentException](DataType.parse("random"))
   }
+
+  it should "parse WriteOperation correctly" in {
+    WriteOperation.parse("overwrite") shouldBe WriteOperation.Overwrite
+    WriteOperation.parse("append") shouldBe WriteOperation.Append
+    WriteOperation.parse("update") shouldBe WriteOperation.Update
+    intercept[IllegalArgumentException](WriteOperation.parse("random"))
+  }
 }

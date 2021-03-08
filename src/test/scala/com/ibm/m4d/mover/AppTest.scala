@@ -17,7 +17,7 @@ import com.ibm.m4d.mover.datastore.cos.{COS, COSBuilder}
 import com.ibm.m4d.mover.datastore.local.{Local, LocalBuilder}
 import com.ibm.m4d.mover.spark._
 import com.ibm.m4d.mover.spark.SparkTest
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ConfigFactory, ConfigRenderOptions, ConfigUtil}
 import org.apache.commons.io.FileUtils
 import org.scalatest.matchers.should.Matchers
 
@@ -79,5 +79,16 @@ class AppTest extends ExtendedFunSuite with Matchers with SparkTest {
     Files.exists(new File("test.parq").toPath) shouldBe true
     Finalizer.main(Array("src/main/resources/local-to-local.conf"))
     Files.exists(new File("test.parq").toPath) shouldBe false
+  }
+
+  test("run misconfigured finalizer") {
+    System.setProperty("IS_TEST", "true")
+    intercept[IllegalArgumentException](Finalizer.main(Array()))
+    val changedConfig = ConfigFactory.parseFile(new File("src/main/resources/local-to-local.conf"))
+      .withoutPath("destination.local")
+    val tempConf = Files.createTempFile("test", ".json")
+    Files.write(tempConf, changedConfig.root().render(ConfigRenderOptions.concise()).getBytes())
+    intercept[IllegalArgumentException](Finalizer.main(Array(tempConf.toString)))
+    FileUtils.forceDeleteOnExit(tempConf.toFile)
   }
 }
