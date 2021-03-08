@@ -13,7 +13,6 @@
 package com.ibm.m4d.mover.datastore.kafka
 
 import com.google.gson.{JsonObject, JsonParser}
-import com.ibm.m4d.mover.ExtendedFunSuite
 import com.ibm.m4d.mover.datastore.Source
 import com.ibm.m4d.mover.datastore.kafka.SerializationFormat.{Avro, JSON}
 import com.ibm.m4d.mover.spark.SparkTest
@@ -24,6 +23,7 @@ import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType
 import org.apache.avro.{Schema, SchemaCompatibility}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.IntegerType
+import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 
 import scala.collection.mutable
@@ -32,7 +32,7 @@ import scala.language.reflectiveCalls
 /**
   * Tests serialization/deserialization of Kafka streams.
   */
-class KafkaUtilsSuite extends ExtendedFunSuite with SparkTest with Matchers {
+class KafkaUtilsSuite extends AnyFunSuite with SparkTest with Matchers {
   case class SchemaVersion(subject: String, version: Int, id: Int, schema: String) {
     def toJSONString: String = {
       val obj = new JsonObject()

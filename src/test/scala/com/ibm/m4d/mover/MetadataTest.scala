@@ -15,6 +15,7 @@ package com.ibm.m4d.mover
 import com.ibm.m4d.mover.spark.{SparkTest, SparkUtils}
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
+import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
@@ -22,7 +23,7 @@ import scala.collection.JavaConverters._
 /**
   * Tests meta data augmentations.
   */
-class MetadataTest extends ExtendedFunSuite with Matchers with SparkTest {
+class MetadataTest extends AnyFunSuite with Matchers with SparkTest {
 
   test("Dataframe is augmented with meta-data") {
 

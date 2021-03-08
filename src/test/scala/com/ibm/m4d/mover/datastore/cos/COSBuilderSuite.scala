@@ -12,15 +12,15 @@
   */
 package com.ibm.m4d.mover.datastore.cos
 
-import com.ibm.m4d.mover.ExtendedFunSuite
 import com.ibm.m4d.mover.datastore.DataStoreBuilder
 import com.typesafe.config.ConfigFactory
+import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 
 /**
   * Tests for COS source building.
   */
-class COSBuilderSuite extends ExtendedFunSuite with Matchers {
+class COSBuilderSuite extends AnyFunSuite with Matchers {
   test("if config parsing works for both 'cos' and 's3'") {
     val s =
       """

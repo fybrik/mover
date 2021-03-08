@@ -27,6 +27,7 @@ import org.scalatest.matchers.should.Matchers
   */
 class AppTest extends ExtendedFunSuite with Matchers with SparkTest {
   testIfExists("run cos-to-cos")("src/main/resources/cos-to-cos.conf") {
+    System.setProperty("IS_TEST", "true")
     Transfer.main(Array("src/main/resources/cos-to-cos.conf"))
 
     val conf = ConfigFactory.parseFile(new File("src/main/resources/cos-to-cos.conf"))
@@ -41,6 +42,7 @@ class AppTest extends ExtendedFunSuite with Matchers with SparkTest {
   }
 
   ignoreIf("run kafka-to-cos")(fileExists("src/main/resources/kafka-to-cos.conf") && portListening(9092)) {
+    System.setProperty("IS_TEST", "true")
     Transfer.main(Array("src/main/resources/kafka-to-cos.conf"))
 
     val conf = ConfigFactory.parseFile(new File("src/main/resources/kafka-to-cos.conf"))
@@ -55,6 +57,7 @@ class AppTest extends ExtendedFunSuite with Matchers with SparkTest {
   }
 
   test("run local-to-local") {
+    System.setProperty("IS_TEST", "true")
     Transfer.main(Array("src/main/resources/local-to-local.conf"))
 
     FileUtils.forceDeleteOnExit(new File("test.parq"))
