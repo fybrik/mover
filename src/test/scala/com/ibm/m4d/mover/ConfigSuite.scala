@@ -82,4 +82,21 @@ class ConfigSuite extends AnyFlatSpec with Matchers {
     substitutedConfig.hasPath("secretProviderURL") shouldBe false
     substitutedConfig.hasPath("secretProviderRole") shouldBe false
   }
+
+  it should "parse DataFlowType correctly" in {
+    DataFlowType.parse("batch") shouldBe DataFlowType.Batch
+    DataFlowType.parse("Batch") shouldBe DataFlowType.Batch
+    DataFlowType.parse("stream") shouldBe DataFlowType.Stream
+    DataFlowType.parse("Stream") shouldBe DataFlowType.Stream
+    intercept[IllegalArgumentException](DataFlowType.parse("random"))
+  }
+
+  it should "parse DataType correctly" in {
+    DataType.parse("log") shouldBe DataType.LogData
+    DataType.parse("logdata") shouldBe DataType.LogData
+    DataType.parse("change") shouldBe DataType.ChangeData
+    DataType.parse("changedata") shouldBe DataType.ChangeData
+    DataType.parse("cdc") shouldBe DataType.ChangeData
+    intercept[IllegalArgumentException](DataType.parse("random"))
+  }
 }
