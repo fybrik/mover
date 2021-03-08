@@ -13,7 +13,6 @@
 package com.ibm.m4d.mover
 
 import java.io.File
-
 import com.ibm.m4d.mover.datastore.cos.{COS, COSBuilder}
 import com.ibm.m4d.mover.datastore.local.{Local, LocalBuilder}
 import com.ibm.m4d.mover.spark._
@@ -21,6 +20,8 @@ import com.ibm.m4d.mover.spark.SparkTest
 import com.typesafe.config.ConfigFactory
 import org.apache.commons.io.FileUtils
 import org.scalatest.matchers.should.Matchers
+
+import java.nio.file.Files
 
 /**
   * This test class is meant for debugging. It's an integration test of the [[SparkTransfer]] program.
@@ -75,5 +76,8 @@ class AppTest extends ExtendedFunSuite with Matchers with SparkTest {
         ("XXXXXXXXXX", 3.0)
       )
     }
+    Files.exists(new File("test.parq").toPath) shouldBe true
+    Finalizer.main(Array("src/main/resources/local-to-local.conf"))
+    Files.exists(new File("test.parq").toPath) shouldBe false
   }
 }

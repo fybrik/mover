@@ -12,23 +12,23 @@
   */
 package com.ibm.m4d.mover.datastore.local
 
-import java.io.File
-import java.nio.file.Files
-
 import com.ibm.m4d.mover.datastore.cos.FileFormat
 import com.ibm.m4d.mover.datastore.{DataStore, InputType}
 import com.ibm.m4d.mover.{DataFlowType, DataType, MetaData, WriteOperation}
+import org.apache.commons.io.FileUtils
 import org.apache.spark.sql.streaming.DataStreamWriter
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
+
+import java.io.File
 
 /**
   * [[DataStore]] that uses the local file system. This data store is mostly used for testing.
   */
-case class Local(
-    iType: InputType,
-    path: String,
-    fileFormat: FileFormat,
-    partitionBy: Seq[String] = Seq.empty[String]
+class Local(
+    val iType: InputType,
+    val path: String,
+    val fileFormat: FileFormat,
+    val partitionBy: Seq[String] = Seq.empty[String]
 ) extends DataStore(iType) {
   override def additionalSparkConfig(): Map[String, String] = Map.empty[String, String]
 
@@ -52,6 +52,6 @@ case class Local(
   }
 
   override def deleteTarget(): Unit = {
-    Files.delete(new File(path).toPath)
+    FileUtils.deleteDirectory(new File(path))
   }
 }
