@@ -18,7 +18,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 /**
-  * @author ffr@zurich.ibm.com (Florian Froese)
+  * Test different success and failure scenarios of the [[Local]] datastore.
   */
 class LocalBuilderSuite extends AnyFlatSpec with Matchers {
   it should "succeed building reader and writer data source" in {
