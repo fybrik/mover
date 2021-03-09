@@ -13,8 +13,8 @@
 package com.ibm.m4d.mover
 
 import java.nio.file.{Files, Paths}
-
 import com.ibm.m4d.mover.conf.SecretImportSubstitutor
+import com.ibm.m4d.mover.datastore.cos.FileFormat
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -105,5 +105,13 @@ class ConfigSuite extends AnyFlatSpec with Matchers {
     WriteOperation.parse("append") shouldBe WriteOperation.Append
     WriteOperation.parse("update") shouldBe WriteOperation.Update
     intercept[IllegalArgumentException](WriteOperation.parse("random"))
+  }
+
+  it should "parse FileFormat correctly" in {
+    FileFormat.parse("parquet") shouldBe FileFormat.Parquet
+    FileFormat.parse("csv") shouldBe FileFormat.CSV
+    FileFormat.parse("json") shouldBe FileFormat.JSON
+    FileFormat.parse("orc") shouldBe FileFormat.ORC
+    intercept[ClassNotFoundException](FileFormat.parse("random") shouldBe FileFormat.ORC)
   }
 }
