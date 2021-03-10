@@ -13,16 +13,13 @@
 package com.ibm.m4d.mover.datastore.kafka
 
 import com.ibm.m4d.mover.spark._
-import org.apache.avro.{LogicalTypes, Schema, SchemaBuilder}
 import org.apache.commons.lang.RandomStringUtils
-import org.apache.kafka.clients.admin.{AdminClient, AdminClientConfig}
+import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.common.errors.TopicExistsException
-import org.apache.spark.sql.avro.IncompatibleSchemaException
-import org.apache.spark.sql.avro.SchemaConverters.{nullSchema, toAvroType}
-import org.apache.spark.sql.functions.{col, to_json, when}
+import org.apache.spark.sql.avro.SchemaConverters.toAvroType
+import org.apache.spark.sql.functions.{col, to_json}
 import org.apache.spark.sql.streaming.DataStreamWriter
-import org.apache.spark.sql.types.Decimal.minBytesForPrecision
-import org.apache.spark.sql.types.{ArrayType, BinaryType, BooleanType, ByteType, DataType, DateType, DecimalType, DoubleType, FloatType, IntegerType, LongType, MapType, ShortType, StringType, StructField, StructType, TimestampType}
+import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.slf4j.LoggerFactory
 import za.co.absa.abris.avro.functions.from_avro
@@ -34,7 +31,6 @@ import za.co.absa.abris.config.{AbrisConfig, FromAvroConfig, ToAvroConfig}
 import java.nio.ByteBuffer
 import java.util.concurrent.ExecutionException
 import java.util.{Collections, Properties}
-import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -292,65 +288,6 @@ object KafkaUtils {
       forcedSchemaDF
     }
   }
-
-  def toAvroType(
-      catalystType: DataType,
-      nullable: Boolean = false,
-      recordName: String = "topLevelRecord",
-      nameSpace: String = ""
-  ): Schema = {
-    val builder = SchemaBuilder.builder()
-
-    val schema = catalystType match {
-      case BooleanType                        => builder.booleanType()
-      case ByteType | ShortType | IntegerType => builder.intType()
-      case LongType                           => builder.longType()
-      case DateType =>
-        LogicalTypes.date().addToSchema(builder.intType())
-      case TimestampType =>
-        LogicalTypes.timestampMicros().addToSchema(builder.longType())
-
-      case FloatType  => builder.floatType()
-      case DoubleType => builder.doubleType()
-      case StringType => builder.stringType()
-      case d: DecimalType =>
-        val avroType = LogicalTypes.decimal(d.precision, d.scale)
-        val fixedSize = minBytesForPrecision(d.precision)
-        // Need to avoid naming conflict for the fixed fields
-        val name = nameSpace match {
-          case "" => s"$recordName.fixed"
-          case _  => s"$nameSpace.$recordName.fixed"
-        }
-        avroType.addToSchema(SchemaBuilder.fixed(name).size(fixedSize))
-
-      case BinaryType => builder.bytesType()
-      case ArrayType(et, containsNull) =>
-        builder.array()
-          .items(toAvroType(et, containsNull, recordName, nameSpace))
-      case MapType(StringType, vt, valueContainsNull) =>
-        builder.map()
-          .values(toAvroType(vt, valueContainsNull, recordName, nameSpace))
-      case st: StructType =>
-        val childNameSpace = if (nameSpace != "") s"$nameSpace.$recordName" else recordName
-        val fieldsAssembler = builder.record(recordName).namespace(nameSpace).fields()
-        st.foreach { f =>
-          val fieldAvroType =
-            toAvroType(f.dataType, f.nullable, f.name, childNameSpace)
-          fieldsAssembler.name(f.name).`type`(fieldAvroType).noDefault()
-        }
-        fieldsAssembler.endRecord()
-
-      // This should never happen.
-      case other => throw new IncompatibleSchemaException(s"Unexpected type $other.")
-    }
-    if (nullable) {
-      Schema.createUnion(nullSchema, schema)
-    } else {
-      schema
-    }
-  }
-
-  private lazy val nullSchema = Schema.create(Schema.Type.NULL)
 
   private[kafka] def registerSchemaForColumn(
       df: DataFrame,
