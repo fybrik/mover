@@ -376,4 +376,8 @@ class KafkaUtilsSuite extends AnyFunSuite with SparkTest with Matchers {
       deserializedValues should contain theSameElementsAs records
     }
   }
+
+  test("extracting the schema id") {
+    KafkaUtils.extractConfluentSchemaID(Array(0, 0, 0, 0, 1)) shouldBe 1
+  }
 }

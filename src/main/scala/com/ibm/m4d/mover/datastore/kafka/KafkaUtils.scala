@@ -93,24 +93,14 @@ object KafkaUtils {
 
     // TODO investigate Kafka compaction
     logger.info("Reading from secure Kafka cluster...")
-    val df = if (kafkaConfig.user.isEmpty) {
-      spark.readStream.format("kafka")
-        .option("kafka.bootstrap.servers", kafkaConfig.kafkaBrokers)
-        // .option("kafka.group.id", kafkaGroupId)
-        .option("subscribe", kafkaConfig.kafkaTopic)
-        .option("startingOffsets", "earliest")
-        //      .option("endingOffsets", kafkaConfig.getEndingOffset)
-        .load()
-    } else {
-      spark.readStream.format("kafka")
-        .option("kafka.bootstrap.servers", kafkaConfig.kafkaBrokers)
-        // .option("kafka.group.id", kafkaGroupId)
-        .option("subscribe", kafkaConfig.kafkaTopic)
-        .option("startingOffsets", "earliest")
-        .options(kafkaConfig.getCredentialProperties("kafka."))
-        //      .option("endingOffsets", kafkaConfig.getEndingOffset)
-        .load()
-    }
+    val df = spark.readStream.format("kafka")
+      .option("kafka.bootstrap.servers", kafkaConfig.kafkaBrokers)
+      // .option("kafka.group.id", kafkaGroupId)
+      .option("subscribe", kafkaConfig.kafkaTopic)
+      .option("startingOffsets", "earliest")
+      .options(kafkaConfig.getCredentialProperties("kafka."))
+      //      .option("endingOffsets", kafkaConfig.getEndingOffset)
+      .load()
 
     // TODO The df should be augmented with the meta-data from the registry, i.e.
     // the avro schema should be attached to each column.
@@ -129,26 +119,24 @@ object KafkaUtils {
     // val kafkaGroupId = KafkaUtils.genKafkaGroupId(assetName)
 
     // TODO investigate Kafka compaction
-    logger.info("Reading from secure Kafka cluster...")
-    if (kafkaConfig.user.isEmpty) {
-      spark.read.format("kafka")
-        .option("kafka.bootstrap.servers", kafkaConfig.kafkaBrokers)
-        // .option("kafka.group.id", kafkaGroupId)
-        .option("subscribe", kafkaConfig.kafkaTopic)
-        .option("startingOffsets", "earliest")
-        .option("endingOffsets", "latest")
-        //      .option("endingOffsets", kafkaConfig.getEndingOffset)
-        .load()
+    logger.info("Reading from Kafka cluster...")
+    spark.read.format("kafka")
+      .option("kafka.bootstrap.servers", kafkaConfig.kafkaBrokers)
+      // .option("kafka.group.id", kafkaGroupId)
+      .option("subscribe", kafkaConfig.kafkaTopic)
+      .option("startingOffsets", "earliest")
+      .option("endingOffsets", "latest")
+      .options(kafkaConfig.getCredentialProperties("kafka."))
+      //      .option("endingOffsets", kafkaConfig.getEndingOffset)
+      .load()
+  }
+
+  def extractConfluentSchemaID(bytes: Array[Byte]): Int = {
+    val buffer = ByteBuffer.wrap(bytes)
+    if (buffer.get() != ConfluentConstants.MAGIC_BYTE) {
+      -1
     } else {
-      spark.read.format("kafka")
-        .option("kafka.bootstrap.servers", kafkaConfig.kafkaBrokers)
-        // .option("kafka.group.id", kafkaGroupId)
-        .option("subscribe", kafkaConfig.kafkaTopic)
-        .option("startingOffsets", "earliest")
-        .option("endingOffsets", "latest")
-        .options(kafkaConfig.getCredentialProperties("kafka."))
-        //      .option("endingOffsets", kafkaConfig.getEndingOffset)
-        .load()
+      Try(buffer.getInt()).getOrElse(-1)
     }
   }
 
@@ -168,21 +156,12 @@ object KafkaUtils {
         case Some(url) =>
           (
             confluentRegistryConfigurationReading(url, kafkaConfig.kafkaTopic, isKey = true),
-            confluentRegistryConfigurationReading(url, kafkaConfig.kafkaTopic, isKey = true)
+            confluentRegistryConfigurationReading(url, kafkaConfig.kafkaTopic, isKey = false)
           )
         case None => throw new IllegalArgumentException("Please define registry to debug!")
       }
 
-      val extractConfluentSchemaID = (bytes: Array[Byte]) => {
-        val buffer = ByteBuffer.wrap(bytes)
-        if (buffer.get() != ConfluentConstants.MAGIC_BYTE) {
-          -1
-        } else {
-          Try(buffer.getInt()).getOrElse(-1)
-        }
-      }
-
-      val extractSchemaID = org.apache.spark.sql.functions.udf(extractConfluentSchemaID, IntegerType)
+      val extractSchemaID = org.apache.spark.sql.functions.udf(extractConfluentSchemaID _)
 
       df.withColumn("data_key", from_avro(col("key"), keyConf))
         .withColumn("data_value", from_avro(col("value"), valueConf))
@@ -449,127 +428,30 @@ object KafkaUtils {
   }
 
   def writeToKafka(df: DataFrame, kafkaConfig: Kafka): Unit = {
-
     val kafkaDF = catalystToKafka(df, kafkaConfig)
 
-    if (kafkaConfig.user.isEmpty) {
-      kafkaDF
-        .write
-        .format("kafka")
-        .option("kafka.bootstrap.servers", kafkaConfig.kafkaBrokers)
-        .option("topic", kafkaConfig.kafkaTopic)
-        // compression is transparent to the consumer
-        .option("kafka.compression.type", "gzip")
-        // need larger batch size than the default 16 KB for compression to be efficient.
-        .option("kafka.batch.size", "1048576")
-        // set linger such that Kafka waits up to 1 second to fill the batch size.
-        // this has a bit of effect on the latency but throughput seems more important.
-        .option("kafka.linger.ms", "1000")
-        // below options are put to these insane values in order to prevent
-        // org.apache.kafka.common.errors.UnknownTopicOrPartitionException
-        // when automatic topic creation is used in Kafka.
-        .option("kafka.session.timeout.ms", "300000")
-        .option("kafka.fetch.max.wait.ms", "300000")
-        .option("kafka.request.timeout.ms", "800000")
-        .option("kafka.max.request.size", "16000000")
-        .option("kafka.retry.backoff.ms", "1000")
-        .option("kafka.retries", "300")
-        .option("kafka.max.in.flight.requests.per.connection", "1")
-        // end of insane values.
-        .save()
-    } else {
-      kafkaDF
-        .write
-        .format("kafka")
-        .option("kafka.bootstrap.servers", kafkaConfig.kafkaBrokers)
-        .options(kafkaConfig.getCredentialProperties("kafka."))
-        .option("topic", kafkaConfig.kafkaTopic)
-        // compression is transparent to the consumer
-        .option("kafka.compression.type", "gzip")
-        // need larger batch size than the default 16 KB for compression to be efficient.
-        .option("kafka.batch.size", "1048576")
-        // set linger such that Kafka waits up to 1 second to fill the batch size.
-        // this has a bit of effect on the latency but throughput seems more important.
-        .option("kafka.linger.ms", "1000")
-        // below options are put to these insane values in order to prevent
-        // org.apache.kafka.common.errors.UnknownTopicOrPartitionException
-        // when automatic topic creation is used in Kafka.
-        .option("kafka.session.timeout.ms", "300000")
-        .option("kafka.fetch.max.wait.ms", "300000")
-        .option("kafka.request.timeout.ms", "800000")
-        .option("kafka.max.request.size", "16000000")
-        .option("kafka.retry.backoff.ms", "1000")
-        .option("kafka.retries", "300")
-        .option("kafka.max.in.flight.requests.per.connection", "1")
-        // end of insane values.
-        .save()
-    }
+    kafkaDF.write
+      .format("kafka")
+      .option("topic", kafkaConfig.kafkaTopic)
+      .options(kafkaConfig.getCommonProps("kafka."))
+      .save()
   }
 
   def writeToKafkaStream(df: DataFrame, kafkaConfig: Kafka, kafkaTopic: String): DataStreamWriter[Row] = {
-
     val kafkaDF = catalystToKafka(df, kafkaConfig)
 
-    if (kafkaConfig.user.isEmpty) {
-      kafkaDF
-        .writeStream
-        .format("kafka")
-        .option("kafka.bootstrap.servers", kafkaConfig.kafkaBrokers)
-        .option("topic", kafkaTopic)
-        // compression is transparent to the consumer
-        .option("kafka.compression.type", "gzip")
-        // need larger batch size than the default 16 KB for compression to be efficient.
-        .option("kafka.batch.size", "1048576")
-        // set linger such that Kafka waits up to 1 second to fill the batch size.
-        // this has a bit of effect on the latency but throughput seems more important.
-        .option("kafka.linger.ms", "1000")
-        // below options are put to these insane values in order to prevent
-        // org.apache.kafka.common.errors.UnknownTopicOrPartitionException
-        // when automatic topic creation is used in Kafka.
-        .option("kafka.session.timeout.ms", "300000")
-        .option("kafka.fetch.max.wait.ms", "300000")
-        .option("kafka.request.timeout.ms", "800000")
-        .option("kafka.max.request.size", "16000000")
-        .option("kafka.retry.backoff.ms", "1000")
-        .option("kafka.retries", "300")
-        .option("kafka.max.in.flight.requests.per.connection", "1")
-    } else {
-      kafkaDF
-        .writeStream
-        .format("kafka")
-        .option("kafka.bootstrap.servers", kafkaConfig.kafkaBrokers)
-        .options(kafkaConfig.getCredentialProperties("kafka."))
-        .option("topic", kafkaTopic)
-        // compression is transparent to the consumer
-        .option("kafka.compression.type", "gzip")
-        // need larger batch size than the default 16 KB for compression to be efficient.
-        .option("kafka.batch.size", "1048576")
-        // set linger such that Kafka waits up to 1 second to fill the batch size.
-        // this has a bit of effect on the latency but throughput seems more important.
-        .option("kafka.linger.ms", "1000")
-        // below options are put to these insane values in order to prevent
-        // org.apache.kafka.common.errors.UnknownTopicOrPartitionException
-        // when automatic topic creation is used in Kafka.
-        .option("kafka.session.timeout.ms", "300000")
-        .option("kafka.fetch.max.wait.ms", "300000")
-        .option("kafka.request.timeout.ms", "800000")
-        .option("kafka.max.request.size", "16000000")
-        .option("kafka.retry.backoff.ms", "1000")
-        .option("kafka.retries", "300")
-        .option("kafka.max.in.flight.requests.per.connection", "1")
-    }
+    kafkaDF
+      .writeStream
+      .format("kafka")
+      .option("topic", kafkaConfig.kafkaTopic)
+      .options(kafkaConfig.getCommonProps("kafka."))
   }
 
   def deleteTopic(config: Kafka, topicName: String): Unit = {
     val adminProps = new Properties
+    val map = config.getCommonProps()
     // copy the settings from the producer properties.
-    for (key <- config.getProducerProperties.keySet().asScala) {
-      adminProps.put(key, config.getProducerProperties.get(key))
-    }
-    // configure some ridiculous timeouts.
-    adminProps.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, "800000")
-    adminProps.put(AdminClientConfig.RETRY_BACKOFF_MS_CONFIG, "1000")
-    adminProps.put(AdminClientConfig.RETRIES_CONFIG, "300")
+    map.foreach { case (k, v) => adminProps.put(k, v) }
     // Create admin client
     val adminClient = AdminClient.create(adminProps)
     try { // Define topic

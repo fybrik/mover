@@ -43,7 +43,6 @@ case class Kafka(
     serializationFormat: SerializationFormat = SerializationFormat.Avro,
     securityProtocol: String = "SASL_SSL",
     saslMechanism: String = "SCRAM-SHA-512",
-    sslTruststore: Option[String] = None,
     sslTruststoreLocation: Option[String] = None,
     sslTruststorePassword: Option[String] = None
 ) extends DataStore(iType) {
@@ -69,64 +68,47 @@ case class Kafka(
   }
 
   def getCredentialProperties(prefix: String = ""): Map[String, String] = {
-    val jaasClass = saslMechanism.toLowerCase() match {
-      case "plain"         => "org.apache.kafka.common.security.plain.PlainLoginModule"
-      case "scram-sha-512" => "org.apache.kafka.common.security.scram.ScramLoginModule"
-      case _               => throw new IllegalArgumentException(s"Unsupported SASL mechanism! '$saslMechanism'")
+    if (user.nonEmpty) {
+      val jaasClass = saslMechanism.toLowerCase() match {
+        case "plain"         => "org.apache.kafka.common.security.plain.PlainLoginModule"
+        case "scram-sha-512" => "org.apache.kafka.common.security.scram.ScramLoginModule"
+        case _               => throw new IllegalArgumentException(s"Unsupported SASL mechanism! '$saslMechanism'")
+      }
+      Map(
+        prefix + CommonClientConfigs.SECURITY_PROTOCOL_CONFIG -> securityProtocol.toUpperCase(),
+        prefix + SaslConfigs.SASL_MECHANISM -> saslMechanism.toUpperCase(),
+        (prefix + SaslConfigs.SASL_JAAS_CONFIG -> (jaasClass + " required username=\"" + user + "\" password=\"" + password + "\";"))
+      ) ++ sslTruststoreLocation.map(s => prefix + SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG -> s) ++ sslTruststorePassword.map(s => prefix + SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG -> s)
+    } else {
+      Map.empty[String, String]
     }
-    Map(
-      prefix + CommonClientConfigs.SECURITY_PROTOCOL_CONFIG -> securityProtocol.toUpperCase(),
-      prefix + SaslConfigs.SASL_MECHANISM -> saslMechanism.toUpperCase(),
-      (prefix + SaslConfigs.SASL_JAAS_CONFIG -> (jaasClass + " required username=\"" + user + "\" password=\"" + password + "\";"))
-    ) ++ sslTruststoreLocation.map(s => prefix + SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG -> s) ++ sslTruststorePassword.map(s => prefix + SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG -> s)
   }
 
   /**
     * @return Kafka properties that are common to both producers and consumers.
     */
-  private def getCommonProps = {
-    val props = new Properties
-    props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaBrokers)
-    props.put(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryURL)
-    getCredentialProperties().foreach { case (k, v) => props.put(k, v) }
-    props
+  def getCommonProps(prefix: String = ""): Map[String, String] = {
+    getCredentialProperties(prefix) ++ Map(
+      prefix + ProducerConfig.BOOTSTRAP_SERVERS_CONFIG -> kafkaBrokers,
+      // compression is transparent to the consumer
+      prefix + "compression.type" -> "gzip",
+      // need larger batch size than the default 16 KB for compression to be efficient.
+      prefix + "batch.size" -> "1048576",
+      // set linger such that Kafka waits up to 1 second to fill the batch size.
+      // this has a bit of effect on the latency but throughput seems more important.
+      prefix + "linger.ms" -> "1000",
+      // below options are put to these insane values in order to prevent
+      // org.apache.common.errors.UnknownTopicOrPartitionException
+      // when automatic topic creation is used in Kafka.
+      prefix + "session.timeout.ms" -> "300000",
+      prefix + "fetch.max.wait.ms" -> "300000",
+      prefix + "request.timeout.ms" -> "800000",
+      prefix + "max.request.size" -> "16000000",
+      prefix + "retry.backoff.ms" -> "1000",
+      prefix + "retries" -> "300",
+      prefix + "max.in.flight.requests.per.connection" -> "1"
+    ) ++ schemaRegistryURL.map(s => prefix + AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG -> s)
   }
-
-  /**
-    * @return The Kafka producer properties that are needed to write into the control topic.
-    */
-  def getProducerProperties: Properties = {
-    val props = getCommonProps
-    props.put(ProducerConfig.ACKS_CONFIG, "all")
-    props.put(ProducerConfig.RETRIES_CONFIG, "0")
-    props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, classOf[KafkaAvroSerializer])
-    props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, classOf[KafkaAvroSerializer])
-    props
-  }
-
-  /**
-    * @return Using the given groupId, returns the Kafka consumer properties.
-    */
-  def getConsumerProperties(groupId: String, metadataRefresh: Option[Long]): Properties = { // consumer properties
-    val props = this.getCommonProps
-    props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId)
-    // messages are not committed. This makes sure that we get all.
-    props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
-    props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_uncommitted")
-    props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
-    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, classOf[KafkaAvroDeserializer])
-    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, classOf[KafkaAvroDeserializer])
-    // confluent specific configuration required by the avro binary de-serializer
-    props.put(KafkaAvroDeserializerConfig.SPECIFIC_AVRO_READER_CONFIG, "false")
-    // set the frequency by which metadata, e.g. wildcard topic subscriptions, are refreshed.
-    metadataRefresh.foreach(l => props.put(ConsumerConfig.METADATA_MAX_AGE_CONFIG, l.toString))
-    props
-  }
-
-  /**
-    * @return The Kafka consumer properties with a default group Id
-    */
-  def getConsumerProperties: Properties = this.getConsumerProperties("ctrl-msg-consumer", None)
 
   override def deleteTarget(): Unit = {
     KafkaUtils.deleteTopic(this, kafkaTopic)

@@ -15,12 +15,11 @@ package com.ibm.m4d.mover.datastore.kafka
 import java.io.File
 import java.nio.file.Files
 import java.util.Base64
-
 import com.ibm.m4d.mover.ConfigUtils
 import com.ibm.m4d.mover.datastore._
 import com.typesafe.config.Config
 
-import scala.util.Try
+import scala.util.{Failure, Try}
 
 /**
   * This builds a [[DataStore]] for Kafka. It checks for configuration options and returns a
@@ -31,7 +30,7 @@ case object KafkaBuilder extends DataStoreBuilder {
     val keyDeserializer = ConfigUtils.opt(config, "keyDeserializer").getOrElse("io.confluent.kafka.serializers.KafkaAvroDeserializer")
     val valueDeserializer = ConfigUtils.opt(config, "valueDeserializer").getOrElse("io.confluent.kafka.serializers.KafkaAvroDeserializer")
     if (!(keyDeserializer.equals(valueDeserializer))) {
-      throw new IllegalArgumentException("Currently keyDeserializer and valueDeserializer have to be the same!")
+      return Failure(new IllegalArgumentException("Currently keyDeserializer and valueDeserializer have to be the same!"))
     }
     val dataFormat = if (config.hasPath("serializationFormat")) {
       SerializationFormat.parse(config.getString("serializationFormat"))
@@ -50,7 +49,7 @@ case object KafkaBuilder extends DataStoreBuilder {
         }
       case (None, Some(_)) =>
       case (None, None)    =>
-      case (_, _)          => throw new IllegalArgumentException("Not supported!")
+      case (Some(_), None) => return Failure(new IllegalArgumentException("A sslTruststoreLocation has to be specified!"))
     }
 
     Try(Kafka(
@@ -67,7 +66,6 @@ case object KafkaBuilder extends DataStoreBuilder {
       dataFormat,
       if (config.hasPath("securityProtocol")) config.getString("securityProtocol") else "SASL_SSL",
       if (config.hasPath("saslMechanism")) config.getString("saslMechanism") else "SCRAM-SHA-512",
-      truststore,
       truststoreLocation,
       ConfigUtils.opt(config, "sslTruststorePassword")
     ))

@@ -57,7 +57,6 @@ class KafkaReadWriteSuite extends ExtendedFunSuite with SparkTest with Matchers 
         "SCRAM-SHA-512",
         None,
         None,
-        None,
       )
 
       val beforeSchema = df.schema

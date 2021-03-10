@@ -21,7 +21,6 @@ import org.apache.commons.io.FileUtils
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
 import java.io.File
 import java.nio.file.Files
 import scala.collection.JavaConverters._
@@ -145,6 +144,49 @@ class KafkaAppSuite extends AnyFlatSpec with ForAllTestContainer with SparkTest 
       )
       val rData = rdf.as[MyClass].collect()
       rData should contain theSameElementsAs expected
+    }
+  }
+
+  it should "Read Kafka avro debugging info" in {
+    System.setProperty("IS_TEST", "true")
+    val format = "avro"
+    val registryUrl = "http://" + registryContainer.containerIpAddress + ":" + registryContainer.mappedPort(8080) + "/api/ccompat"
+    val baseConf = ConfigFactory.parseFile(new File("src/main/resources/kafka-to-local.conf"))
+    val newConf = ConfigFactory.parseMap(Map(
+      "source.kafka.kafkaBrokers" -> kafkaContainer.bootstrapServers,
+      "source.kafka.kafkaTopic" -> ("batch-log-" + format),
+      "source.kafka.schemaRegistryURL" -> registryUrl,
+      "source.kafka.serializationFormat" -> format,
+      "source.kafka.raw" -> "true",
+      "readDataType" -> "logdata",
+      "writeDataType" -> "logdata",
+      "writeOperation" -> "overwrite",
+    ).asJava).withFallback(baseConf)
+
+    val tempConf = Files.createTempFile("batch-log-" + format, ".json")
+    Files.write(tempConf, newConf.root().render(ConfigRenderOptions.concise()).getBytes())
+
+    val kafka = KafkaBuilder.buildSource(newConf).get.asInstanceOf[Kafka]
+
+    withSparkSession { spark =>
+      import spark.implicits._
+      import com.ibm.m4d.mover.spark._
+
+      val df = spark.createDataset(data).toDF()
+        .setNullableStateOfColumn("i", nullable = false)
+        .setNullableStateOfColumn("d", nullable = false)
+
+      val kafkaDF = KafkaUtils.toKafkaWriteableDF(df, Seq(df("i")))
+
+      kafka.write(kafkaDF, DataType.LogData, WriteOperation.Append)
+
+      val rawDebug = KafkaUtils.readFromKafka(spark, kafka)
+      rawDebug.schema.names should contain theSameElementsAs Seq(
+        "key", "value", "topic", "partition", "offset", "timestamp",
+        "timestampType", "data_key", "data_value", "key_schema_id", "value_schema_id"
+      )
+
+      kafka.deleteTarget()
     }
   }
 }
