@@ -111,7 +111,10 @@ case class Kafka(
   }
 
   override def deleteTarget(): Unit = {
-    KafkaUtils.deleteTopic(this, kafkaTopic)
-    logger.info(s"Kafka topic ${kafkaTopic} was deleted!")
+    if (KafkaUtils.deleteTopic(this, kafkaTopic)) {
+      logger.info(s"Kafka topic ${kafkaTopic} was deleted!")
+    } else {
+      logger.warn(s"Kafka topic ${kafkaTopic} could not be deleted!")
+    }
   }
 }

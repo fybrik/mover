@@ -189,4 +189,29 @@ class KafkaAppSuite extends AnyFlatSpec with ForAllTestContainer with SparkTest 
       kafka.deleteTarget()
     }
   }
+
+  behavior of "failures"
+  it should "fail if topic that is deleted does not exist" in {
+    System.setProperty("IS_TEST", "true")
+    val format = "avro"
+    val registryUrl = "http://" + registryContainer.containerIpAddress + ":" + registryContainer.mappedPort(8080) + "/api/ccompat"
+    val baseConf = ConfigFactory.parseFile(new File("src/main/resources/kafka-to-local.conf"))
+    val newConf = ConfigFactory.parseMap(Map(
+      "source.kafka.kafkaBrokers" -> kafkaContainer.bootstrapServers,
+      "source.kafka.kafkaTopic" -> ("batch-log-non-existant"),
+      "source.kafka.schemaRegistryURL" -> registryUrl,
+      "source.kafka.serializationFormat" -> format,
+      "source.kafka.raw" -> "true",
+      "readDataType" -> "logdata",
+      "writeDataType" -> "logdata",
+      "writeOperation" -> "overwrite",
+    ).asJava).withFallback(baseConf)
+
+    val tempConf = Files.createTempFile("batch-log-" + format, ".json")
+    Files.write(tempConf, newConf.root().render(ConfigRenderOptions.concise()).getBytes())
+
+    val kafka = KafkaBuilder.buildSource(newConf).get.asInstanceOf[Kafka]
+
+    kafka.deleteTarget()
+  }
 }

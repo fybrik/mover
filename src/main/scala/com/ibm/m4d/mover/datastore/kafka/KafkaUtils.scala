@@ -35,7 +35,7 @@ import java.nio.ByteBuffer
 import java.util.concurrent.ExecutionException
 import java.util.{Collections, Properties}
 import scala.collection.JavaConverters._
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 /**
   * This is a collection of general methods needed to interact with Kafka systems.
@@ -181,10 +181,17 @@ object KafkaUtils {
       case SerializationFormat.Avro =>
         (kafkaConfig.schemaRegistryURL, kafkaConfig.keySchema, kafkaConfig.valueSchema) match {
           case (Some(registry), None, None) => // Load schema from confluent registry
-            val keyConf = confluentRegistryConfigurationReading(registry, kafkaConfig.kafkaTopic, isKey = true)
+            // Treat key as optional. If not found it won't be deserialized
+            val maybeKeyConf = Try(confluentRegistryConfigurationReading(registry, kafkaConfig.kafkaTopic, isKey = true))
             val valueConf = confluentRegistryConfigurationReading(registry, kafkaConfig.kafkaTopic, isKey = false)
-            df.withColumn("key", from_avro(col("key"), keyConf).as("key"))
-              .withColumn("value", from_avro(col("value"), valueConf).as("value"))
+
+            maybeKeyConf match {
+              case Success(keyConf) =>
+                df.withColumn("key", from_avro(col("key"), keyConf).as("key"))
+                  .withColumn("value", from_avro(col("value"), valueConf).as("value"))
+              case Failure(_) =>
+                df.withColumn("value", from_avro(col("value"), valueConf).as("value"))
+            }
 
           case (None, None, Some(valueSchema)) => // se schema that is specified in valueSchema
             df.withColumn("value", from_avro(col("value"), valueSchema).as("value"))
@@ -390,6 +397,7 @@ object KafkaUtils {
                 to_avro(df("value"), valueSchema).as("value")
               )
             case (None, None, None) =>
+              // TODO Useless case? The used schema is not visible to the outside!
               val keySchema = AvroSchemaUtils.toAvroSchema(df, "key", "key", kafkaConfig.kafkaTopic)
               val valueSchema = AvroSchemaUtils.toAvroSchema(df, "value", "value", kafkaConfig.kafkaTopic)
 
@@ -415,6 +423,7 @@ object KafkaUtils {
             case (None, Some(valueSchema)) =>
               df.select(to_avro(df("value"), valueSchema).as("value"))
             case (None, None) =>
+              // TODO useless case?
               val valueSchema = AvroSchemaUtils.toAvroSchema(df, "value", "value", kafkaConfig.kafkaTopic)
               df.select(to_avro(df("value"), valueSchema.toString).as("value"))
             case (_, _) => throw new IllegalArgumentException("Need to specify either schema registry, schema or nothing!")
@@ -447,7 +456,7 @@ object KafkaUtils {
       .options(kafkaConfig.getCommonProps("kafka."))
   }
 
-  def deleteTopic(config: Kafka, topicName: String): Unit = {
+  def deleteTopic(config: Kafka, topicName: String): Boolean = {
     val adminProps = new Properties
     val map = config.getCommonProps()
     // copy the settings from the producer properties.
@@ -459,12 +468,13 @@ object KafkaUtils {
       val deleteTopicsResult = adminClient.deleteTopics(Collections.singleton(topicName))
       // Since the call is Async, Lets wait for it to complete.
       deleteTopicsResult.values.get(topicName).get
+      deleteTopicsResult.values.get(topicName).isDone
     } catch {
       case e @ (_: InterruptedException | _: ExecutionException) =>
         if (!e.getCause.isInstanceOf[TopicExistsException]) {
           logger.error("Could not create control topic: ", e)
-          throw new RuntimeException(e.getMessage, e)
         }
+        false
       // TopicExistsException - Swallow this exception, just means the topic already exists.
     } finally if (adminClient != null) adminClient.close()
   }
