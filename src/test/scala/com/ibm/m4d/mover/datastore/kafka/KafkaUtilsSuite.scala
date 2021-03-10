@@ -266,7 +266,7 @@ class KafkaUtilsSuite extends AnyFunSuite with SparkTest with Matchers {
         Avro
       )
 
-      val kafkaDF = KafkaUtils.toKafkaWriteableDF(refDF, Seq.empty[Column], noKey = true)
+      val kafkaDF = KafkaUtils.toKafkaWriteableDF(refDF, Seq.empty[Column])
       val kafkaSerializedDF = KafkaUtils.catalystToKafka(kafkaDF, kafkaConfig)
 
       //simulate write
@@ -365,7 +365,7 @@ class KafkaUtilsSuite extends AnyFunSuite with SparkTest with Matchers {
         Avro
       )
 
-      val kafkaDF = KafkaUtils.toKafkaWriteableDF(refDF, Seq.empty[Column], noKey = true)
+      val kafkaDF = KafkaUtils.toKafkaWriteableDF(refDF, Seq.empty[Column])
       val kafkaSerializedDF = KafkaUtils.catalystToKafka(kafkaDF, kafkaConfig)
 
       //simulate write
@@ -460,7 +460,7 @@ class KafkaUtilsSuite extends AnyFunSuite with SparkTest with Matchers {
         JSON
       )
 
-      val kafkaDF = KafkaUtils.toKafkaWriteableDF(refDF, Seq.empty[Column], noKey = true)
+      val kafkaDF = KafkaUtils.toKafkaWriteableDF(refDF, Seq.empty[Column])
       val kafkaSerializedDF = KafkaUtils.catalystToKafka(kafkaDF, kafkaConfig)
 
       //simulate write

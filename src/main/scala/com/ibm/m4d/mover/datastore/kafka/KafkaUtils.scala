@@ -23,7 +23,6 @@ import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.slf4j.LoggerFactory
 import za.co.absa.abris.avro.functions.from_avro
-import za.co.absa.abris.avro.parsing.utils.AvroSchemaUtils
 import za.co.absa.abris.avro.read.confluent.{ConfluentConstants, SchemaManagerFactory}
 import za.co.absa.abris.avro.registry.SchemaSubject
 import za.co.absa.abris.config.{AbrisConfig, FromAvroConfig, ToAvroConfig}
@@ -211,9 +210,11 @@ object KafkaUtils {
               .withColumn("value", from_json(df("value").cast(StringType), valueSchema, Map.empty[String, String]).as("value"))
 
           case (None, None) => // Infer schema from first row
-            val firstRow = df.select(df("value").cast(StringType)).head().getAs[String](0)
-            val schema = df.select(schema_of_json(firstRow)).head().getAs[String](0)
-            df.withColumn("value", from_json(df("value").cast(StringType), schema, Map.empty[String, String]).as("value"))
+            val firstRow = df.select(df("key").cast(StringType), df("value").cast(StringType)).head()
+            val keySchema = df.select(schema_of_json(firstRow.getAs[String]("key"))).head().getAs[String](0)
+            val valueSchema = df.select(schema_of_json(firstRow.getAs[String]("value"))).head().getAs[String](0)
+            df.withColumn("key", from_json(df("key").cast(StringType), keySchema, Map.empty[String, String]).as("value"))
+              .withColumn("value", from_json(df("value").cast(StringType), valueSchema, Map.empty[String, String]).as("value"))
 
           case (_, _) => throw new IllegalArgumentException("Case not supported!")
         }
@@ -223,15 +224,14 @@ object KafkaUtils {
     sparkDF
   }
 
-  def toKafkaWriteableDF(df: DataFrame, keyColumns: Seq[org.apache.spark.sql.Column], noKey: Boolean = false): DataFrame = {
+  def toKafkaWriteableDF(df: DataFrame, keyColumns: Seq[org.apache.spark.sql.Column]): DataFrame = {
     val spark = df.sparkSession
 
-    // transform orginal dataframe to a Kafka compatible one
-    val transformedDF = df
-
-    if (noKey) {
-      val valueSchema = transformedDF.schema
-      val valueColumns = transformedDF.schema.fields.map(f => transformedDF(f.name))
+    if (keyColumns.isEmpty) {
+      // In case of no specified key columns put columns into a 'value' struct
+      // and transform and enforce the new schema.
+      val valueSchema = df.schema
+      val valueColumns = df.schema.fields.map(f => df(f.name))
       val allColumns = valueSchema.fields.map(_.name)
 
       val sqlSchema = StructType(Array(
@@ -243,7 +243,7 @@ object KafkaUtils {
 
       import org.apache.spark.sql.functions.struct
 
-      val projectedDF = transformedDF
+      val projectedDF = df
         .withColumn("value", struct(valueColumns: _*))
         .drop(allColumns: _*)
 
@@ -251,35 +251,28 @@ object KafkaUtils {
       val forcedSchemaDF = spark.createDataFrame(projectedDF.rdd, sqlSchema)
       forcedSchemaDF
     } else {
-      val (dfWithId, finalKeyColumns) = if (keyColumns.nonEmpty) {
-        (transformedDF, keyColumns)
-      } else {
-        import org.apache.spark.sql.functions.monotonically_increasing_id
-
-        val newDF = transformedDF.withColumn("artificial_id", monotonically_increasing_id())
-        (newDF, Seq(newDF("artificial_id")))
-      }
-
-      val keyColumnsDF = dfWithId.select(finalKeyColumns: _*)
+      // If key columns are specified put these columns into a struct 'key' and
+      // additionally all columns into a struct 'value' and transform and enforce the new schema.
+      val keyColumnsDF = df.select(keyColumns: _*)
 
       val keySchema = StructType(keyColumnsDF.schema.fields)
-      val valueSchema = transformedDF.schema
-      val valueColumns = transformedDF.schema.fields.map(f => dfWithId(f.name))
+      val valueSchema = df.schema
+      val valueColumns = df.schema.fields.map(f => df(f.name))
 
-      val allColumns = (keySchema.fields.map(_.name) ++ valueSchema.fields.map(_.name)).distinct
+      val allColumns = valueSchema.fields.map(_.name).distinct
 
       val sqlSchema = StructType(Array(
         StructField("key", keySchema, nullable = false),
         StructField("value", valueSchema, nullable = false)
       ))
 
-      logger.info("Current schema: " + dfWithId.schema)
+      logger.info("Current schema: " + df.schema)
       logger.info("Forced SQL Schema: " + sqlSchema.toString())
 
       import org.apache.spark.sql.functions.struct
 
-      val projectedDF = dfWithId
-        .withColumn("key", struct(finalKeyColumns: _*))
+      val projectedDF = df
+        .withColumn("key", struct(keyColumns: _*))
         .withColumn("value", struct(valueColumns: _*))
         .drop(allColumns: _*)
 
@@ -301,6 +294,11 @@ object KafkaUtils {
     val fieldIndex = df.schema.fieldIndex(columnName)
     val field = df.schema.fields(fieldIndex)
 
+    // Because the Abris serializer needs a union as a schema when using nullable types but the
+    // schema registry uses the inner record type only two schemas are needed here in order to support
+    // Kafka tombstones. The "inner" schema is written to the registry and the "outer" schema (["null", schema])
+    // is used for the serialization. In case of null the Abris library will write null and will not serialize
+    // a within a union.
     val schema = toAvroType(field.dataType, nullable = false, "name", "namespace")
     val nullableSchema = if (field.nullable) toAvroType(field.dataType, field.nullable, "name", "namespace") else schema
     val subject = SchemaSubject.
@@ -333,16 +331,7 @@ object KafkaUtils {
                 to_avro(df("key"), keySchema).as("key"),
                 to_avro(df("value"), valueSchema).as("value")
               )
-            case (None, None, None) =>
-              // TODO Useless case? The used schema is not visible to the outside!
-              val keySchema = AvroSchemaUtils.toAvroSchema(df, "key", "key", kafkaConfig.kafkaTopic)
-              val valueSchema = AvroSchemaUtils.toAvroSchema(df, "value", "value", kafkaConfig.kafkaTopic)
-
-              df.select(
-                to_avro(df("key"), keySchema.toString).as("key"),
-                to_avro(df("value"), valueSchema.toString).as("value")
-              )
-            case (_, _, _) => throw new IllegalArgumentException("Need to specify either schema registry, schema or nothing!")
+            case (_, _, _) => throw new IllegalArgumentException("Need to specify either schema registry or schemas!")
           }
 
         case SerializationFormat.JSON =>
@@ -359,11 +348,7 @@ object KafkaUtils {
               df.select(to_avro(df("value"), valueConfig).as("value"))
             case (None, Some(valueSchema)) =>
               df.select(to_avro(df("value"), valueSchema).as("value"))
-            case (None, None) =>
-              // TODO useless case?
-              val valueSchema = AvroSchemaUtils.toAvroSchema(df, "value", "value", kafkaConfig.kafkaTopic)
-              df.select(to_avro(df("value"), valueSchema.toString).as("value"))
-            case (_, _) => throw new IllegalArgumentException("Need to specify either schema registry, schema or nothing!")
+            case (_, _) => throw new IllegalArgumentException("Need to specify either schema registry or schema!")
           }
 
         case SerializationFormat.JSON =>
