@@ -17,7 +17,7 @@ import com.ibm.m4d.mover.datastore.kafka.KafkaBuilder
 import com.typesafe.config.Config
 
 import scala.collection.mutable
-import scala.util.Try
+import scala.util.{Failure, Try}
 import scala.collection.JavaConverters._
 
 /**
@@ -42,14 +42,16 @@ object DataStoreBuilder {
     // If a builder is given by class name it's looked up by this.
     // This way new datastores can be supported by loading additional jars.
 
-    val builder = (datastoreConfig, maybeClass) match {
-      case (Some(entry), _) => registeredDataStoreBuilders(entry)
+    (datastoreConfig, maybeClass) match {
+      case (Some(entry), _) => registeredDataStoreBuilders(entry).buildSource(config)
       case (None, Some(cl)) =>
-        Class.forName(cl).getDeclaredConstructor().newInstance().asInstanceOf[DataStoreBuilder]
-      case (None, None) => throw new IllegalArgumentException("Could not find any builder!")
+        Class.forName(cl)
+          .getDeclaredConstructor()
+          .newInstance()
+          .asInstanceOf[DataStoreBuilder]
+          .buildSource(config)
+      case (None, None) => Failure(new IllegalArgumentException("Could not find any builder!"))
     }
-
-    builder.buildSource(config)
   }
 
   def buildTarget(config: Config): Try[DataStore] = {
@@ -59,18 +61,24 @@ object DataStoreBuilder {
     // If a builder is given by class name it's looked up by this.
     // This way new datastores can be supported by loading additional jars.
 
-    val builder = (datastoreConfig, maybeClass) match {
-      case (Some(entry), _) => registeredDataStoreBuilders(entry)
+    (datastoreConfig, maybeClass) match {
+      case (Some(entry), _) => registeredDataStoreBuilders(entry).buildTarget(config)
       // TODO Maybe pick [[DataStoreBuilder]] by class name?
       case (None, Some(cl)) =>
-        Class.forName(cl).getDeclaredConstructor().newInstance().asInstanceOf[DataStoreBuilder]
-      case (None, None) => throw new IllegalArgumentException("Could not find any builder!")
+        Class.forName(cl)
+          .getDeclaredConstructor()
+          .newInstance()
+          .asInstanceOf[DataStoreBuilder]
+          .buildTarget(config)
+      case (None, None) => Failure(new IllegalArgumentException("Could not find any builder!"))
     }
-
-    builder.buildTarget(config)
   }
 
   def registerNewBuilder(shortName: String, builder: DataStoreBuilder): Unit = {
     registeredDataStoreBuilders.put(shortName, builder)
+  }
+
+  def unregisterNewBuilder(shortName: String): Unit = {
+    registeredDataStoreBuilders.remove(shortName)
   }
 }

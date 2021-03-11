@@ -42,6 +42,7 @@ object DataType {
     s.toLowerCase() match {
       case "logdata" | "log"               => LogData
       case "changedata" | "change" | "cdc" => ChangeData
+      case _                               => throw new IllegalArgumentException("Unknown data type '" + s + "'. Expected values are 'logdata' or 'changedata'.")
     }
   }
 }

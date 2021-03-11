@@ -127,6 +127,7 @@ object FileFormat {
       }
       setPartitions(df.write, partitionBy).mode(saveMode)
         .format("csv")
+        .option("header", "true")
         .save(path)
     }
 

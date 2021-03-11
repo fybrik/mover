@@ -24,7 +24,6 @@ import scala.collection.JavaConverters._
 
 /**
   * Unit test for the [[VaultClient]] and the [[com.ibm.m4d.mover.conf.VaultSecretSubstitutor]].
-  * @author ffr@zurich.ibm.com (Florian Froese)
   */
 class VaultSuite extends AnyFlatSpec with Matchers {
   val FakeLogin = "{\"auth\": {\"client_token\":\"mytoken\"}}"

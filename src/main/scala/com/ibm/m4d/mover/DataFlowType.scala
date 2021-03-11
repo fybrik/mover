@@ -24,6 +24,7 @@ object DataFlowType {
     s.toLowerCase() match {
       case "batch"  => Batch
       case "stream" => Stream
+      case _        => throw new IllegalArgumentException("Unknown dataflow type '" + s + "'. Expected values are 'batch' or 'stream'.")
     }
   }
 }

@@ -30,7 +30,7 @@ class LocalBuilder extends DataStoreBuilder {
       val fileFormat = FileFormat.parse(localConfig.getString("dataFormat"))
       val path = localConfig.getString("path")
       val partitionBy = if (localConfig.hasPath("partitionBy")) localConfig.getStringList("partitionBy").asScala else Seq.empty[String]
-      Success(Local(Source, path, fileFormat, partitionBy))
+      Success(new Local(Source, path, fileFormat, partitionBy))
     } else {
       Failure(new IllegalArgumentException("Could not find local datastore configuration!"))
     }
@@ -42,7 +42,7 @@ class LocalBuilder extends DataStoreBuilder {
       val fileFormat = FileFormat.parse(localConfig.getString("dataFormat"))
       val path = localConfig.getString("path")
       val partitionBy = if (localConfig.hasPath("partitionBy")) localConfig.getStringList("partitionBy").asScala else Seq.empty[String]
-      Success(Local(Source, path, fileFormat, partitionBy))
+      Success(new Local(Source, path, fileFormat, partitionBy))
     } else {
       Failure(new IllegalArgumentException("Could not find local datastore configuration!"))
     }

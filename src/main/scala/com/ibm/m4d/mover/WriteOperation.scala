@@ -46,6 +46,7 @@ object WriteOperation {
       case "overwrite" => Overwrite
       case "append"    => Append
       case "update"    => Update
+      case _           => throw new IllegalArgumentException("Unknown write operation '" + s + "'. Expected values are 'overwrite', 'append' or 'update'.")
     }
   }
 }
