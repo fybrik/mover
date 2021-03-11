@@ -226,30 +226,43 @@ package object spark {
       }
     }
 
+    private def nullField(field: StructField, name: String, f: (StructField) => StructField): StructField = {
+      val searchName = if (name.contains(".")) {
+        name.substring(0, name.indexOf("."))
+      } else {
+        name
+      }
+      if (field.name == searchName) {
+        if (field.dataType.isInstanceOf[StructType]) {
+          if (field.name == name) {
+            f(field)
+          } else {
+            val subName = name.substring(name.indexOf(".") + 1)
+            val newFields = field.dataType.asInstanceOf[StructType].fields.map(field => nullField(field, subName, f))
+            StructField(field.name, StructType(newFields), field.nullable, field.metadata)
+          }
+        } else {
+          f(field)
+        }
+      } else {
+        field
+      }
+    }
+
     /**
       * Set nullable property of column.
       * @param colName is the column name to change
       * @param nullable is the flag to set, such that the column is  either nullable or not
       */
     def setNullableStateOfColumn(colName: String, nullable: Boolean): DataFrame = {
-      val maybeStructField = df.schema.fields.find(_.name == colName)
-      if (maybeStructField.isEmpty) {
-        throw new IllegalArgumentException(s"Field '$colName' does not exist!")
-      }
-
-      if (maybeStructField.get.nullable == nullable) {
-        df // nothing to do. Return current data frame
-      } else {
-        // get schema
-        val schema = df.schema
-        // modify [[StructField] with name `cn`
-        val newSchema = StructType(schema.map {
-          case StructField(c, t, _, m) if c.equals(colName) => StructField(c, t, nullable = nullable, m)
-          case y: StructField                               => y
-        })
-        // apply new schema
-        df.sqlContext.createDataFrame(df.rdd, newSchema)
-      }
+      // get schema
+      val schema = df.schema
+      // modify [[StructField] with name `cn`
+      val newSchema = StructType(schema.fields.map { field =>
+        nullField(field, colName, (f: StructField) => f.copy(nullable = nullable))
+      })
+      // apply new schema
+      df.sqlContext.createDataFrame(df.rdd, newSchema)
     }
   }
 

@@ -21,6 +21,7 @@ import okhttp3.HttpUrl
 import okhttp3.mockwebserver.{Dispatcher, MockResponse, MockWebServer, RecordedRequest}
 import org.apache.avro.SchemaCompatibility.SchemaCompatibilityType
 import org.apache.avro.{Schema, SchemaCompatibility}
+import org.apache.spark.sql.Column
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.IntegerType
 import org.scalatest.funsuite.AnyFunSuite
@@ -233,6 +234,62 @@ class KafkaUtilsSuite extends AnyFunSuite with SparkTest with Matchers {
     server.shutdown()
   }
 
+  test("test serde with confluent avro and registry (value only)") {
+    val server = new MockWebServer
+    dispatcher.cacheBySubject.clear()
+    server.setDispatcher(dispatcher)
+    server.start()
+    val url = server.url("/")
+
+    withSparkSession { spark =>
+      import spark.implicits._
+
+      val records = Seq(
+        MyClass(1, "a", 1.0),
+        MyClass(2, "b", 2.0),
+        MyClass(3, "c", 3.0)
+      )
+
+      val refDF = spark.createDataFrame(records)
+
+      val kafkaConfig = new Kafka(
+        Source,
+        "localhost:9091",
+        "",
+        "",
+        "topic",
+        Some(url.toString),
+        None,
+        None,
+        false,
+        false,
+        Avro
+      )
+
+      val kafkaDF = KafkaUtils.toKafkaWriteableDF(refDF, Seq.empty[Column])
+      val kafkaSerializedDF = KafkaUtils.catalystToKafka(kafkaDF, kafkaConfig)
+
+      //simulate write
+      val rows = kafkaSerializedDF.collect()
+
+      val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig)
+
+      kafkaDeserializedDF.schema.names should contain theSameElementsAs Seq("value")
+
+      val deserializedRows = kafkaDeserializedDF.collect()
+
+      deserializedRows should have size 3
+
+      val deserializedValues = KafkaUtils.mapToValue(kafkaDeserializedDF).as[MyClass].collect()
+
+      deserializedValues should contain theSameElementsAs records
+      dispatcher.cacheBySubject.keySet should contain theSameElementsAs Seq("topic-value")
+      dispatcher.maxId shouldBe 1
+      dispatcher.cacheBySubject.values.map(_.size).sum shouldBe 1
+    }
+    server.shutdown()
+  }
+
   test("test serde with avro schema") {
     val keySchema = "{\"type\":\"record\",\"name\":\"Key\",\"namespace\":\"topic\",\"fields\":[{\"name\":\"i\",\"type\":[\"int\",\"null\"]}]}"
     val valueSchema = "{\"type\":\"record\",\"name\":\"Value\",\"namespace\":\"topic\",\"fields\":[{\"name\":\"i\",\"type\":[\"int\",\"null\"]},{\"name\":\"s\",\"type\":[\"string\",\"null\"]},{\"name\":\"d\",\"type\":\"double\"}]}"
@@ -271,6 +328,54 @@ class KafkaUtilsSuite extends AnyFunSuite with SparkTest with Matchers {
       val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig)
 
       val deserializedRows = kafkaDeserializedDF.collect()
+
+      deserializedRows should have size 3
+
+      val deserializedValues = KafkaUtils.mapToValue(kafkaDeserializedDF).as[MyClass].collect()
+
+      deserializedValues should contain theSameElementsAs records
+    }
+  }
+
+  test("test serde with avro schema (value only)") {
+    val valueSchema = "{\"type\":\"record\",\"name\":\"Value\",\"namespace\":\"topic\",\"fields\":[{\"name\":\"i\",\"type\":[\"int\",\"null\"]},{\"name\":\"s\",\"type\":[\"string\",\"null\"]},{\"name\":\"d\",\"type\":\"double\"}]}"
+
+    withSparkSession { spark =>
+      import spark.implicits._
+
+      val records = Seq(
+        MyClass(1, "a", 1.0),
+        MyClass(2, "b", 2.0),
+        MyClass(3, "c", 3.0)
+      )
+
+      val refDF = spark.createDataFrame(records)
+
+      val kafkaConfig = new Kafka(
+        Source,
+        "localhost:9091",
+        "",
+        "",
+        "topic",
+        None,
+        None,
+        Some(valueSchema),
+        false,
+        false,
+        Avro
+      )
+
+      val kafkaDF = KafkaUtils.toKafkaWriteableDF(refDF, Seq.empty[Column])
+      val kafkaSerializedDF = KafkaUtils.catalystToKafka(kafkaDF, kafkaConfig)
+
+      //simulate write
+      val rows = kafkaSerializedDF.collect()
+
+      val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig)
+
+      val deserializedRows = kafkaDeserializedDF.collect()
+
+      kafkaDeserializedDF.schema.names should contain theSameElementsAs Seq("value")
 
       deserializedRows should have size 3
 
@@ -327,7 +432,7 @@ class KafkaUtilsSuite extends AnyFunSuite with SparkTest with Matchers {
     }
   }
 
-  test("test serde with json and no schema (automatic inference)") {
+  test("test serde with json schema (value only)") {
 
     withSparkSession { spark =>
       import spark.implicits._
@@ -339,8 +444,53 @@ class KafkaUtilsSuite extends AnyFunSuite with SparkTest with Matchers {
 
       val refDF = spark.createDataFrame(records)
 
-      val keySchema = refDF.select("i").schema.json
       val valueSchema = refDF.schema.json
+
+      val kafkaConfig = new Kafka(
+        Source,
+        "localhost:9091",
+        "",
+        "",
+        "topic",
+        None,
+        None,
+        Some(valueSchema),
+        false,
+        false,
+        JSON
+      )
+
+      val kafkaDF = KafkaUtils.toKafkaWriteableDF(refDF, Seq.empty[Column])
+      val kafkaSerializedDF = KafkaUtils.catalystToKafka(kafkaDF, kafkaConfig)
+
+      //simulate write
+      val rows = kafkaSerializedDF.collect()
+
+      val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig)
+
+      val deserializedRows = kafkaDeserializedDF.collect()
+
+      kafkaDeserializedDF.schema.names should contain theSameElementsAs Seq("value")
+
+      deserializedRows should have size 3
+
+      val deserializedValues = KafkaUtils.mapToValue(kafkaDeserializedDF).as[MyClass].collect()
+
+      deserializedValues should contain theSameElementsAs records
+    }
+  }
+
+  test("test serde with json and no schema (automatic inference)") {
+
+    withSparkSession { spark =>
+      import spark.implicits._
+      val records = Seq(
+        MyClass(1, "a", 1.0),
+        MyClass(2, "b", 2.0),
+        MyClass(3, "c", 3.0)
+      )
+
+      val refDF = spark.createDataFrame(records)
 
       val kafkaConfig = new Kafka(
         Source,
@@ -375,5 +525,17 @@ class KafkaUtilsSuite extends AnyFunSuite with SparkTest with Matchers {
 
       deserializedValues should contain theSameElementsAs records
     }
+  }
+
+  test("extracting the schema id success") {
+    KafkaUtils.extractConfluentSchemaID(Array(0, 0, 0, 0, 1)) shouldBe 1
+  }
+
+  test("extracting the schema id failure (wrong magic byte)") {
+    KafkaUtils.extractConfluentSchemaID(Array(1, 0, 0, 0, 1)) shouldBe -1
+  }
+
+  test("extracting the schema id failure (wrong id)") {
+    KafkaUtils.extractConfluentSchemaID(Array(0, 1)) shouldBe -1
   }
 }

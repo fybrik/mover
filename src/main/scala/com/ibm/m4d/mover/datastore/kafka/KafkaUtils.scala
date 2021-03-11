@@ -14,15 +14,15 @@ package com.ibm.m4d.mover.datastore.kafka
 
 import com.ibm.m4d.mover.spark._
 import org.apache.commons.lang.RandomStringUtils
-import org.apache.kafka.clients.admin.{AdminClient, AdminClientConfig}
+import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.common.errors.TopicExistsException
+import org.apache.spark.sql.avro.SchemaConverters.toAvroType
 import org.apache.spark.sql.functions.{col, to_json}
 import org.apache.spark.sql.streaming.DataStreamWriter
-import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
+import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.slf4j.LoggerFactory
 import za.co.absa.abris.avro.functions.from_avro
-import za.co.absa.abris.avro.parsing.utils.AvroSchemaUtils
 import za.co.absa.abris.avro.read.confluent.{ConfluentConstants, SchemaManagerFactory}
 import za.co.absa.abris.avro.registry.SchemaSubject
 import za.co.absa.abris.config.{AbrisConfig, FromAvroConfig, ToAvroConfig}
@@ -30,8 +30,7 @@ import za.co.absa.abris.config.{AbrisConfig, FromAvroConfig, ToAvroConfig}
 import java.nio.ByteBuffer
 import java.util.concurrent.ExecutionException
 import java.util.{Collections, Properties}
-import scala.collection.JavaConverters._
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 /**
   * This is a collection of general methods needed to interact with Kafka systems.
@@ -89,24 +88,14 @@ object KafkaUtils {
 
     // TODO investigate Kafka compaction
     logger.info("Reading from secure Kafka cluster...")
-    val df = if (kafkaConfig.user.isEmpty) {
-      spark.readStream.format("kafka")
-        .option("kafka.bootstrap.servers", kafkaConfig.kafkaBrokers)
-        // .option("kafka.group.id", kafkaGroupId)
-        .option("subscribe", kafkaConfig.kafkaTopic)
-        .option("startingOffsets", "earliest")
-        //      .option("endingOffsets", kafkaConfig.getEndingOffset)
-        .load()
-    } else {
-      spark.readStream.format("kafka")
-        .option("kafka.bootstrap.servers", kafkaConfig.kafkaBrokers)
-        // .option("kafka.group.id", kafkaGroupId)
-        .option("subscribe", kafkaConfig.kafkaTopic)
-        .option("startingOffsets", "earliest")
-        .options(kafkaConfig.getCredentialProperties("kafka."))
-        //      .option("endingOffsets", kafkaConfig.getEndingOffset)
-        .load()
-    }
+    val df = spark.readStream.format("kafka")
+      .option("kafka.bootstrap.servers", kafkaConfig.kafkaBrokers)
+      // .option("kafka.group.id", kafkaGroupId)
+      .option("subscribe", kafkaConfig.kafkaTopic)
+      .option("startingOffsets", "earliest")
+      .options(kafkaConfig.getCredentialProperties("kafka."))
+      //      .option("endingOffsets", kafkaConfig.getEndingOffset)
+      .load()
 
     // TODO The df should be augmented with the meta-data from the registry, i.e.
     // the avro schema should be attached to each column.
@@ -125,26 +114,24 @@ object KafkaUtils {
     // val kafkaGroupId = KafkaUtils.genKafkaGroupId(assetName)
 
     // TODO investigate Kafka compaction
-    logger.info("Reading from secure Kafka cluster...")
-    if (kafkaConfig.user.isEmpty) {
-      spark.read.format("kafka")
-        .option("kafka.bootstrap.servers", kafkaConfig.kafkaBrokers)
-        // .option("kafka.group.id", kafkaGroupId)
-        .option("subscribe", kafkaConfig.kafkaTopic)
-        .option("startingOffsets", "earliest")
-        .option("endingOffsets", "latest")
-        //      .option("endingOffsets", kafkaConfig.getEndingOffset)
-        .load()
+    logger.info("Reading from Kafka cluster...")
+    spark.read.format("kafka")
+      .option("kafka.bootstrap.servers", kafkaConfig.kafkaBrokers)
+      // .option("kafka.group.id", kafkaGroupId)
+      .option("subscribe", kafkaConfig.kafkaTopic)
+      .option("startingOffsets", "earliest")
+      .option("endingOffsets", "latest")
+      .options(kafkaConfig.getCredentialProperties("kafka."))
+      //      .option("endingOffsets", kafkaConfig.getEndingOffset)
+      .load()
+  }
+
+  def extractConfluentSchemaID(bytes: Array[Byte]): Int = {
+    val buffer = ByteBuffer.wrap(bytes)
+    if (buffer.get() != ConfluentConstants.MAGIC_BYTE) {
+      -1
     } else {
-      spark.read.format("kafka")
-        .option("kafka.bootstrap.servers", kafkaConfig.kafkaBrokers)
-        // .option("kafka.group.id", kafkaGroupId)
-        .option("subscribe", kafkaConfig.kafkaTopic)
-        .option("startingOffsets", "earliest")
-        .option("endingOffsets", "latest")
-        .options(kafkaConfig.getCredentialProperties("kafka."))
-        //      .option("endingOffsets", kafkaConfig.getEndingOffset)
-        .load()
+      Try(buffer.getInt()).getOrElse(-1)
     }
   }
 
@@ -164,21 +151,12 @@ object KafkaUtils {
         case Some(url) =>
           (
             confluentRegistryConfigurationReading(url, kafkaConfig.kafkaTopic, isKey = true),
-            confluentRegistryConfigurationReading(url, kafkaConfig.kafkaTopic, isKey = true)
+            confluentRegistryConfigurationReading(url, kafkaConfig.kafkaTopic, isKey = false)
           )
         case None => throw new IllegalArgumentException("Please define registry to debug!")
       }
 
-      val extractConfluentSchemaID = (bytes: Array[Byte]) => {
-        val buffer = ByteBuffer.wrap(bytes)
-        if (buffer.get() != ConfluentConstants.MAGIC_BYTE) {
-          -1
-        } else {
-          Try(buffer.getInt()).getOrElse(-1)
-        }
-      }
-
-      val extractSchemaID = org.apache.spark.sql.functions.udf(extractConfluentSchemaID, IntegerType)
+      val extractSchemaID = org.apache.spark.sql.functions.udf(extractConfluentSchemaID _)
 
       df.withColumn("data_key", from_avro(col("key"), keyConf))
         .withColumn("data_value", from_avro(col("value"), valueConf))
@@ -198,10 +176,17 @@ object KafkaUtils {
       case SerializationFormat.Avro =>
         (kafkaConfig.schemaRegistryURL, kafkaConfig.keySchema, kafkaConfig.valueSchema) match {
           case (Some(registry), None, None) => // Load schema from confluent registry
-            val keyConf = confluentRegistryConfigurationReading(registry, kafkaConfig.kafkaTopic, isKey = true)
+            // Treat key as optional. If not found it won't be deserialized
+            val maybeKeyConf = Try(confluentRegistryConfigurationReading(registry, kafkaConfig.kafkaTopic, isKey = true))
             val valueConf = confluentRegistryConfigurationReading(registry, kafkaConfig.kafkaTopic, isKey = false)
-            df.withColumn("key", from_avro(col("key"), keyConf).as("key"))
-              .withColumn("value", from_avro(col("value"), valueConf).as("value"))
+
+            maybeKeyConf match {
+              case Success(keyConf) =>
+                df.withColumn("key", from_avro(col("key"), keyConf).as("key"))
+                  .withColumn("value", from_avro(col("value"), valueConf).as("value"))
+              case Failure(_) =>
+                df.withColumn("value", from_avro(col("value"), valueConf).as("value"))
+            }
 
           case (None, None, Some(valueSchema)) => // se schema that is specified in valueSchema
             df.withColumn("value", from_avro(col("value"), valueSchema).as("value"))
@@ -225,9 +210,11 @@ object KafkaUtils {
               .withColumn("value", from_json(df("value").cast(StringType), valueSchema, Map.empty[String, String]).as("value"))
 
           case (None, None) => // Infer schema from first row
-            val firstRow = df.select(df("value").cast(StringType)).head().getAs[String](0)
-            val schema = df.select(schema_of_json(firstRow)).head().getAs[String](0)
-            df.withColumn("value", from_json(df("value").cast(StringType), schema, Map.empty[String, String]).as("value"))
+            val firstRow = df.select(df("key").cast(StringType), df("value").cast(StringType)).head()
+            val keySchema = df.select(schema_of_json(firstRow.getAs[String]("key"))).head().getAs[String](0)
+            val valueSchema = df.select(schema_of_json(firstRow.getAs[String]("value"))).head().getAs[String](0)
+            df.withColumn("key", from_json(df("key").cast(StringType), keySchema, Map.empty[String, String]).as("value"))
+              .withColumn("value", from_json(df("value").cast(StringType), valueSchema, Map.empty[String, String]).as("value"))
 
           case (_, _) => throw new IllegalArgumentException("Case not supported!")
         }
@@ -237,15 +224,14 @@ object KafkaUtils {
     sparkDF
   }
 
-  def toKafkaWriteableDF(df: DataFrame, keyColumns: Seq[org.apache.spark.sql.Column], noKey: Boolean = false): DataFrame = {
+  def toKafkaWriteableDF(df: DataFrame, keyColumns: Seq[org.apache.spark.sql.Column]): DataFrame = {
     val spark = df.sparkSession
 
-    // transform orginal dataframe to a Kafka compatible one
-    val transformedDF = df
-
-    if (noKey) {
-      val valueSchema = transformedDF.schema
-      val valueColumns = transformedDF.schema.fields.map(f => transformedDF(f.name))
+    if (keyColumns.isEmpty) {
+      // In case of no specified key columns put columns into a 'value' struct
+      // and transform and enforce the new schema.
+      val valueSchema = df.schema
+      val valueColumns = df.schema.fields.map(f => df(f.name))
       val allColumns = valueSchema.fields.map(_.name)
 
       val sqlSchema = StructType(Array(
@@ -257,7 +243,7 @@ object KafkaUtils {
 
       import org.apache.spark.sql.functions.struct
 
-      val projectedDF = transformedDF
+      val projectedDF = df
         .withColumn("value", struct(valueColumns: _*))
         .drop(allColumns: _*)
 
@@ -265,35 +251,28 @@ object KafkaUtils {
       val forcedSchemaDF = spark.createDataFrame(projectedDF.rdd, sqlSchema)
       forcedSchemaDF
     } else {
-      val (dfWithId, finalKeyColumns) = if (keyColumns.nonEmpty) {
-        (transformedDF, keyColumns)
-      } else {
-        import org.apache.spark.sql.functions.monotonically_increasing_id
-
-        val newDF = transformedDF.withColumn("artificial_id", monotonically_increasing_id())
-        (newDF, Seq(newDF("artificial_id")))
-      }
-
-      val keyColumnsDF = dfWithId.select(finalKeyColumns: _*)
+      // If key columns are specified put these columns into a struct 'key' and
+      // additionally all columns into a struct 'value' and transform and enforce the new schema.
+      val keyColumnsDF = df.select(keyColumns: _*)
 
       val keySchema = StructType(keyColumnsDF.schema.fields)
-      val valueSchema = transformedDF.schema
-      val valueColumns = transformedDF.schema.fields.map(f => dfWithId(f.name))
+      val valueSchema = df.schema
+      val valueColumns = df.schema.fields.map(f => df(f.name))
 
-      val allColumns = (keySchema.fields.map(_.name) ++ valueSchema.fields.map(_.name)).distinct
+      val allColumns = valueSchema.fields.map(_.name).distinct
 
       val sqlSchema = StructType(Array(
         StructField("key", keySchema, nullable = false),
         StructField("value", valueSchema, nullable = false)
       ))
 
-      logger.info("Current schema: " + dfWithId.schema)
+      logger.info("Current schema: " + df.schema)
       logger.info("Forced SQL Schema: " + sqlSchema.toString())
 
       import org.apache.spark.sql.functions.struct
 
-      val projectedDF = dfWithId
-        .withColumn("key", struct(finalKeyColumns: _*))
+      val projectedDF = df
+        .withColumn("key", struct(keyColumns: _*))
         .withColumn("value", struct(valueColumns: _*))
         .drop(allColumns: _*)
 
@@ -312,8 +291,16 @@ object KafkaUtils {
     val schemaRegistryClientConfig = Map(AbrisConfig.SCHEMA_REGISTRY_URL -> schemaRegistryUrl)
     val schemaManager = SchemaManagerFactory.create(schemaRegistryClientConfig)
 
-    val schema = AvroSchemaUtils.
-      toAvroSchema(df, columnName, "name", "namespace")
+    val fieldIndex = df.schema.fieldIndex(columnName)
+    val field = df.schema.fields(fieldIndex)
+
+    // Because the Abris serializer needs a union as a schema when using nullable types but the
+    // schema registry uses the inner record type only two schemas are needed here in order to support
+    // Kafka tombstones. The "inner" schema is written to the registry and the "outer" schema (["null", schema])
+    // is used for the serialization. In case of null the Abris library will write null and will not serialize
+    // a within a union.
+    val schema = toAvroType(field.dataType, nullable = false, "name", "namespace")
+    val nullableSchema = if (field.nullable) toAvroType(field.dataType, field.nullable, "name", "namespace") else schema
     val subject = SchemaSubject.
       usingTopicNameStrategy(kafkaTopic, isKey = columnName.equalsIgnoreCase("key"))
     val schemaId = schemaManager.getIfExistsOrElseRegisterSchema(schema, subject)
@@ -322,6 +309,7 @@ object KafkaUtils {
       .toConfluentAvro
       .downloadSchemaById(schemaId)
       .usingSchemaRegistry(schemaRegistryUrl)
+      .withSchema(nullableSchema.toString())
   }
 
   private[kafka] def catalystToKafka(df: DataFrame, kafkaConfig: Kafka): DataFrame = {
@@ -343,15 +331,7 @@ object KafkaUtils {
                 to_avro(df("key"), keySchema).as("key"),
                 to_avro(df("value"), valueSchema).as("value")
               )
-            case (None, None, None) =>
-              val keySchema = AvroSchemaUtils.toAvroSchema(df, "key", "key", kafkaConfig.kafkaTopic)
-              val valueSchema = AvroSchemaUtils.toAvroSchema(df, "value", "value", kafkaConfig.kafkaTopic)
-
-              df.select(
-                to_avro(df("key"), keySchema.toString).as("key"),
-                to_avro(df("value"), valueSchema.toString).as("value")
-              )
-            case (_, _, _) => throw new IllegalArgumentException("Need to specify either schema registry, schema or nothing!")
+            case (_, _, _) => throw new IllegalArgumentException("Need to specify either schema registry or schemas!")
           }
 
         case SerializationFormat.JSON =>
@@ -368,10 +348,7 @@ object KafkaUtils {
               df.select(to_avro(df("value"), valueConfig).as("value"))
             case (None, Some(valueSchema)) =>
               df.select(to_avro(df("value"), valueSchema).as("value"))
-            case (None, None) =>
-              val valueSchema = AvroSchemaUtils.toAvroSchema(df, "value", "value", kafkaConfig.kafkaTopic)
-              df.select(to_avro(df("value"), valueSchema.toString).as("value"))
-            case (_, _) => throw new IllegalArgumentException("Need to specify either schema registry, schema or nothing!")
+            case (_, _) => throw new IllegalArgumentException("Need to specify either schema registry or schema!")
           }
 
         case SerializationFormat.JSON =>
@@ -382,127 +359,30 @@ object KafkaUtils {
   }
 
   def writeToKafka(df: DataFrame, kafkaConfig: Kafka): Unit = {
-
     val kafkaDF = catalystToKafka(df, kafkaConfig)
 
-    if (kafkaConfig.user.isEmpty) {
-      kafkaDF
-        .write
-        .format("kafka")
-        .option("kafka.bootstrap.servers", kafkaConfig.kafkaBrokers)
-        .option("topic", kafkaConfig.kafkaTopic)
-        // compression is transparent to the consumer
-        .option("kafka.compression.type", "gzip")
-        // need larger batch size than the default 16 KB for compression to be efficient.
-        .option("kafka.batch.size", "1048576")
-        // set linger such that Kafka waits up to 1 second to fill the batch size.
-        // this has a bit of effect on the latency but throughput seems more important.
-        .option("kafka.linger.ms", "1000")
-        // below options are put to these insane values in order to prevent
-        // org.apache.kafka.common.errors.UnknownTopicOrPartitionException
-        // when automatic topic creation is used in Kafka.
-        .option("kafka.session.timeout.ms", "300000")
-        .option("kafka.fetch.max.wait.ms", "300000")
-        .option("kafka.request.timeout.ms", "800000")
-        .option("kafka.max.request.size", "16000000")
-        .option("kafka.retry.backoff.ms", "1000")
-        .option("kafka.retries", "300")
-        .option("kafka.max.in.flight.requests.per.connection", "1")
-        // end of insane values.
-        .save()
-    } else {
-      kafkaDF
-        .write
-        .format("kafka")
-        .option("kafka.bootstrap.servers", kafkaConfig.kafkaBrokers)
-        .options(kafkaConfig.getCredentialProperties("kafka."))
-        .option("topic", kafkaConfig.kafkaTopic)
-        // compression is transparent to the consumer
-        .option("kafka.compression.type", "gzip")
-        // need larger batch size than the default 16 KB for compression to be efficient.
-        .option("kafka.batch.size", "1048576")
-        // set linger such that Kafka waits up to 1 second to fill the batch size.
-        // this has a bit of effect on the latency but throughput seems more important.
-        .option("kafka.linger.ms", "1000")
-        // below options are put to these insane values in order to prevent
-        // org.apache.kafka.common.errors.UnknownTopicOrPartitionException
-        // when automatic topic creation is used in Kafka.
-        .option("kafka.session.timeout.ms", "300000")
-        .option("kafka.fetch.max.wait.ms", "300000")
-        .option("kafka.request.timeout.ms", "800000")
-        .option("kafka.max.request.size", "16000000")
-        .option("kafka.retry.backoff.ms", "1000")
-        .option("kafka.retries", "300")
-        .option("kafka.max.in.flight.requests.per.connection", "1")
-        // end of insane values.
-        .save()
-    }
+    kafkaDF.write
+      .format("kafka")
+      .option("topic", kafkaConfig.kafkaTopic)
+      .options(kafkaConfig.getCommonProps("kafka."))
+      .save()
   }
 
   def writeToKafkaStream(df: DataFrame, kafkaConfig: Kafka, kafkaTopic: String): DataStreamWriter[Row] = {
-
     val kafkaDF = catalystToKafka(df, kafkaConfig)
 
-    if (kafkaConfig.user.isEmpty) {
-      kafkaDF
-        .writeStream
-        .format("kafka")
-        .option("kafka.bootstrap.servers", kafkaConfig.kafkaBrokers)
-        .option("topic", kafkaTopic)
-        // compression is transparent to the consumer
-        .option("kafka.compression.type", "gzip")
-        // need larger batch size than the default 16 KB for compression to be efficient.
-        .option("kafka.batch.size", "1048576")
-        // set linger such that Kafka waits up to 1 second to fill the batch size.
-        // this has a bit of effect on the latency but throughput seems more important.
-        .option("kafka.linger.ms", "1000")
-        // below options are put to these insane values in order to prevent
-        // org.apache.kafka.common.errors.UnknownTopicOrPartitionException
-        // when automatic topic creation is used in Kafka.
-        .option("kafka.session.timeout.ms", "300000")
-        .option("kafka.fetch.max.wait.ms", "300000")
-        .option("kafka.request.timeout.ms", "800000")
-        .option("kafka.max.request.size", "16000000")
-        .option("kafka.retry.backoff.ms", "1000")
-        .option("kafka.retries", "300")
-        .option("kafka.max.in.flight.requests.per.connection", "1")
-    } else {
-      kafkaDF
-        .writeStream
-        .format("kafka")
-        .option("kafka.bootstrap.servers", kafkaConfig.kafkaBrokers)
-        .options(kafkaConfig.getCredentialProperties("kafka."))
-        .option("topic", kafkaTopic)
-        // compression is transparent to the consumer
-        .option("kafka.compression.type", "gzip")
-        // need larger batch size than the default 16 KB for compression to be efficient.
-        .option("kafka.batch.size", "1048576")
-        // set linger such that Kafka waits up to 1 second to fill the batch size.
-        // this has a bit of effect on the latency but throughput seems more important.
-        .option("kafka.linger.ms", "1000")
-        // below options are put to these insane values in order to prevent
-        // org.apache.kafka.common.errors.UnknownTopicOrPartitionException
-        // when automatic topic creation is used in Kafka.
-        .option("kafka.session.timeout.ms", "300000")
-        .option("kafka.fetch.max.wait.ms", "300000")
-        .option("kafka.request.timeout.ms", "800000")
-        .option("kafka.max.request.size", "16000000")
-        .option("kafka.retry.backoff.ms", "1000")
-        .option("kafka.retries", "300")
-        .option("kafka.max.in.flight.requests.per.connection", "1")
-    }
+    kafkaDF
+      .writeStream
+      .format("kafka")
+      .option("topic", kafkaConfig.kafkaTopic)
+      .options(kafkaConfig.getCommonProps("kafka."))
   }
 
-  def deleteTopic(config: Kafka, topicName: String): Unit = {
+  def deleteTopic(config: Kafka, topicName: String): Boolean = {
     val adminProps = new Properties
+    val map = config.getCommonProps()
     // copy the settings from the producer properties.
-    for (key <- config.getProducerProperties.keySet().asScala) {
-      adminProps.put(key, config.getProducerProperties.get(key))
-    }
-    // configure some ridiculous timeouts.
-    adminProps.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, "800000")
-    adminProps.put(AdminClientConfig.RETRY_BACKOFF_MS_CONFIG, "1000")
-    adminProps.put(AdminClientConfig.RETRIES_CONFIG, "300")
+    map.foreach { case (k, v) => adminProps.put(k, v) }
     // Create admin client
     val adminClient = AdminClient.create(adminProps)
     try { // Define topic
@@ -510,12 +390,13 @@ object KafkaUtils {
       val deleteTopicsResult = adminClient.deleteTopics(Collections.singleton(topicName))
       // Since the call is Async, Lets wait for it to complete.
       deleteTopicsResult.values.get(topicName).get
+      deleteTopicsResult.values.get(topicName).isDone
     } catch {
       case e @ (_: InterruptedException | _: ExecutionException) =>
         if (!e.getCause.isInstanceOf[TopicExistsException]) {
           logger.error("Could not create control topic: ", e)
-          throw new RuntimeException(e.getMessage, e)
         }
+        false
       // TopicExistsException - Swallow this exception, just means the topic already exists.
     } finally if (adminClient != null) adminClient.close()
   }
