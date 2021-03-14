@@ -10,9 +10,8 @@
   * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
   * specific language governing permissions and limitations under the License.
   */
-package com.ibm.m4d.mover
+package com.ibm.m4d.mover.conf
 
-import com.ibm.m4d.mover.conf.CredentialSubstitutor
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import okhttp3.HttpUrl
 import okhttp3.mockwebserver.{Dispatcher, MockResponse, MockWebServer, RecordedRequest}

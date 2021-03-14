@@ -26,10 +26,11 @@ import scala.util.{Failure, Success, Try}
 /**
   * This substitutor retrieves credentials from Vault using a JWT token as authentication.
   */
-class VaultSecretSubstitutor extends CredentialSubstitutor {
-  import VaultSecretSubstitutor._
+object VaultSecretSubstitutor extends CredentialSubstitutor {
+  val VaultConfigKey = "vault"
+  private val logger = LoggerFactory.getLogger("VaultSecretSubstitutor")
 
-  override def substitutionKey: String = VaultSecretSubstitutor.VaultConfigKey
+  override def substitutionKey: String = VaultConfigKey
 
   override def substituteConfig(config: Config): Config = {
     val vaultConfig = config.getConfig(substitutionKey)
@@ -53,11 +54,6 @@ class VaultSecretSubstitutor extends CredentialSubstitutor {
     config.withoutPath(VaultSecretSubstitutor.VaultConfigKey)
       .withFallback(newConf)
   }
-}
-
-object VaultSecretSubstitutor {
-  val VaultConfigKey = "vault"
-  private val logger = LoggerFactory.getLogger(VaultSecretSubstitutor.getClass)
 }
 
 object VaultClient {
@@ -111,24 +107,20 @@ object VaultClient {
       .build()
     logger.info("Request: " + request.toString)
     var response: Response = null
-    try {
-      response = client.newCall(request).execute()
-      if (response.isSuccessful) {
-        val conf = ConfigFactory.parseString(response.body().string())
-        if (conf.hasPath("auth.client_token")) {
-          Success(conf.getString("auth.client_token"))
-        } else {
-          Failure(ConfigException("Client token not found in data response!"))
-        }
+    response = client.newCall(request).execute()
+    val result = if (response.isSuccessful) {
+      val conf = ConfigFactory.parseString(response.body().string())
+      if (conf.hasPath("auth.client_token")) {
+        Success(conf.getString("auth.client_token"))
       } else {
-        logger.warn(s"Received: ${response.code()} ${response.message()} Body: ${response.body().string()}")
-        Failure(ConfigException("Could not retrieve login token!"))
+        Failure(ConfigException("Client token not found in data response!"))
       }
-    } finally {
-      if (response != null) {
-        response.close()
-      }
+    } else {
+      logger.warn(s"Received: ${response.code()} ${response.message()} Body: ${response.body().string()}")
+      Failure(ConfigException("Could not retrieve login token!"))
     }
+    response.close()
+    result
   }
 
   private def read(address: String, token: String, path: String): Config = {
@@ -141,23 +133,15 @@ object VaultClient {
       .build()
     logger.info("Request: " + request.toString)
     var response: Response = null
-    try {
-      response = client.newCall(request).execute()
-      if (response.isSuccessful) {
-        val conf = ConfigFactory.parseString(response.body().string())
-        if (conf.hasPath(VaultDataField)) {
-          conf.getConfig(VaultDataField)
-        } else {
-          ConfigFactory.empty()
-        }
-      } else {
-        logger.warn(s"Received: ${response.code()} ${response.message()} Body: ${response.body().string()}")
-        throw new IllegalArgumentException("Could not retrieve url!")
-      }
-    } finally {
-      if (response != null) {
-        response.close()
-      }
+    response = client.newCall(request).execute()
+    val resultConfig = if (response.isSuccessful) {
+      val conf = ConfigFactory.parseString(response.body().string())
+      conf.getConfig(VaultDataField)
+    } else {
+      logger.warn(s"Received: ${response.code()} ${response.message()} Body: ${response.body().string()}")
+      ConfigFactory.empty()
     }
+    response.close()
+    resultConfig
   }
 }

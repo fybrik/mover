@@ -69,12 +69,14 @@ trait CredentialSubstitutor {
 object CredentialSubstitutor {
   def substituteCredentials(config: Config): Config = {
     val substitutors = Seq(
+      VaultSecretSubstitutor,
       new SecretProviderSubstitutor(config),
-      new SecretImportSubstitutor,
-      new VaultSecretSubstitutor
+      new SecretImportSubstitutor
     )
 
-    val substitutedConfig = substitutors.foldLeft(config)((nConf, substitutor) => substitutor.substitute(nConf))
+    val substitutedConfig = substitutors.foldLeft(config)(
+      (nConf, substitutor) => substitutor.substitute(nConf)
+    )
 
     substitutedConfig
       .withoutPath(SecretProviderSubstitutor.SecretProviderUrlKey)

@@ -30,7 +30,7 @@ class SecretProviderSubstitutor(config: Config) extends CredentialSubstitutor {
   private val client = if ((config.hasPath(SecretProviderUrlKey)) && (config.hasPath(SecretProviderRoleKey))) {
     val secretProviderUrl = config.getString(SecretProviderUrlKey)
     val secretProviderRole = config.getString(SecretProviderRoleKey)
-    Some(SecretProviderClient(secretProviderUrl, secretProviderRole))
+    Some(new SecretProviderClient(secretProviderUrl, secretProviderRole))
   } else {
     None
   }
@@ -74,7 +74,7 @@ object SecretProviderSubstitutor {
   private val logger = LoggerFactory.getLogger(SecretProviderSubstitutor.getClass)
 }
 
-case class SecretProviderClient(secretProviderUrl: String, secretProviderRole: String) {
+class SecretProviderClient(secretProviderUrl: String, secretProviderRole: String) {
   def retrieveConfig(name: String): Config = {
     val url = if (name.startsWith("http")) {
       name
