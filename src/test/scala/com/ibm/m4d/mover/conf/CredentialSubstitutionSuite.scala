@@ -96,11 +96,11 @@ class CredentialSubstitutionSuite extends AnyFlatSpec with Matchers {
       "secretPath" -> SecretPath
     )
 
+    val vaultPath = spURL.toString + "?role=myrole&secret_name=%2Fv1%2Fhmac%2Fbucket1"
+
     val config = ConfigFactory.empty()
       .withValue("vault", ConfigValueFactory.fromMap(vaultMap.asJava))
-      .withValue("secretProviderURL", ConfigValueFactory.fromAnyRef(spURL.toString))
-      .withValue("secretProviderRole", ConfigValueFactory.fromAnyRef("myrole"))
-      .withValue("vaultPath", ConfigValueFactory.fromAnyRef("/v1/hmac/bucket1"))
+      .withValue("vaultPath", ConfigValueFactory.fromAnyRef(vaultPath))
 
     // Substitute credentials
     val substitutedConfig = CredentialSubstitutor.substituteCredentials(config)
