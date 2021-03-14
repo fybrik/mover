@@ -13,7 +13,7 @@
 package com.ibm.m4d.mover.conf
 
 import com.google.gson.JsonParser
-import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
+import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import okhttp3.HttpUrl
 import okhttp3.mockwebserver.{Dispatcher, MockResponse, MockWebServer, RecordedRequest}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -32,6 +32,7 @@ class VaultSuite extends AnyFlatSpec with Matchers {
   val LoginPath = "/v1/auth/kubernetes/login"
   val SecretPath = "/v1/secret/foo"
   val Jwt = "fakejwt"
+  val Role = "test"
 
   private val vaultDispatcher = new Dispatcher() {
     override def dispatch(recordedRequest: RecordedRequest): MockResponse = {
@@ -53,20 +54,43 @@ class VaultSuite extends AnyFlatSpec with Matchers {
     }
   }
 
-  "VaultClient" should "be able to retrieve some data" in {
-    val jwt = "fakejwt"
-    val role = "test"
+  private def startServer(): (MockWebServer, String) = {
     val server = new MockWebServer
     server.setDispatcher(vaultDispatcher)
     server.start()
     val address = server.url("")
     val addressStr = address.toString.substring(0, address.toString.length - 1) // Get address without tailing "/"
+    (server, addressStr)
+  }
+
+  private def createConfig(
+      url: String,
+      authPath: String = LoginPath,
+      jwt: String = Jwt,
+      secretPath: String = SecretPath,
+      role: String = Role
+  ): Config = {
+    val vaultMap = Map(
+      "role" -> role,
+      "address" -> url,
+      "authPath" -> authPath,
+      "jwt" -> jwt,
+      "secretPath" -> secretPath
+    )
+
+    ConfigFactory.empty()
+      .withValue("a", ConfigValueFactory.fromAnyRef("b"))
+      .withValue("vault", ConfigValueFactory.fromMap(vaultMap.asJava))
+  }
+
+  "VaultClient" should "be able to retrieve some data" in {
+    val (server, url) = startServer()
 
     val conf = ConfigFactory.empty()
-      .withValue("role", ConfigValueFactory.fromAnyRef(role))
-      .withValue("address", ConfigValueFactory.fromAnyRef(addressStr))
+      .withValue("role", ConfigValueFactory.fromAnyRef(Role))
+      .withValue("address", ConfigValueFactory.fromAnyRef(url))
       .withValue("authPath", ConfigValueFactory.fromAnyRef(LoginPath))
-      .withValue("jwt", ConfigValueFactory.fromAnyRef(jwt))
+      .withValue("jwt", ConfigValueFactory.fromAnyRef(Jwt))
       .withValue("secretPath", ConfigValueFactory.fromAnyRef(SecretPath))
 
     val data = VaultClient.readData(conf)
@@ -77,25 +101,9 @@ class VaultSuite extends AnyFlatSpec with Matchers {
   }
 
   "VaultSecretSubstitutor" should "replace a substitute a config correctly" in {
-    val jwt = "fakejwt"
-    val role = "test"
-    val server = new MockWebServer
-    server.setDispatcher(vaultDispatcher)
-    server.start()
-    val address = server.url("")
-    val addressStr = address.toString.substring(0, address.toString.length - 1) // Get address without tailing "/"
+    val (server, url) = startServer()
 
-    val vaultMap = Map(
-      "role" -> role,
-      "address" -> addressStr,
-      "authPath" -> LoginPath,
-      "jwt" -> jwt,
-      "secretPath" -> SecretPath
-    )
-
-    val config = ConfigFactory.empty()
-      .withValue("a", ConfigValueFactory.fromAnyRef("b"))
-      .withValue("vault", ConfigValueFactory.fromMap(vaultMap.asJava))
+    val config = createConfig(url)
 
     val substitutedConfig = VaultSecretSubstitutor.substitute(config)
 
@@ -107,25 +115,9 @@ class VaultSuite extends AnyFlatSpec with Matchers {
   }
 
   "CredentialSubstitutor" should "replace a substitute a config correctly" in {
-    val jwt = "fakejwt"
-    val role = "test"
-    val server = new MockWebServer
-    server.setDispatcher(vaultDispatcher)
-    server.start()
-    val address = server.url("")
-    val addressStr = address.toString.substring(0, address.toString.length - 1) // Get address without tailing "/"
+    val (server, url) = startServer()
 
-    val vaultMap = Map(
-      "role" -> role,
-      "address" -> addressStr,
-      "authPath" -> LoginPath,
-      "jwt" -> jwt,
-      "secretPath" -> SecretPath
-    )
-
-    val config = ConfigFactory.empty()
-      .withValue("a", ConfigValueFactory.fromAnyRef("b"))
-      .withValue("vault", ConfigValueFactory.fromMap(vaultMap.asJava))
+    val config = createConfig(url)
 
     val substitutedConfig = CredentialSubstitutor.substituteCredentials(config)
 
@@ -137,25 +129,9 @@ class VaultSuite extends AnyFlatSpec with Matchers {
   }
 
   "CredentialSubstitutor" should "not retieve credential if login is wrong" in {
-    val jwt = "fakejwt"
-    val role = "test"
-    val server = new MockWebServer
-    server.setDispatcher(vaultDispatcher)
-    server.start()
-    val address = server.url("")
-    val addressStr = address.toString.substring(0, address.toString.length - 1) // Get address without tailing "/"
+    val (server, url) = startServer()
 
-    val vaultMap = Map(
-      "role" -> role,
-      "address" -> addressStr,
-      "authPath" -> LoginPath,
-      "jwt" -> "wrongjwt",
-      "secretPath" -> SecretPath
-    )
-
-    val config = ConfigFactory.empty()
-      .withValue("a", ConfigValueFactory.fromAnyRef("b"))
-      .withValue("vault", ConfigValueFactory.fromMap(vaultMap.asJava))
+    val config = createConfig(url, jwt = "wrongjwt")
 
     val substitutedConfig = CredentialSubstitutor.substituteCredentials(config)
 
@@ -167,25 +143,9 @@ class VaultSuite extends AnyFlatSpec with Matchers {
   }
 
   "CredentialSubstitutor" should "not retrieve credential if auth path corrupt" in {
-    val jwt = "fakejwt"
-    val role = "test"
-    val server = new MockWebServer
-    server.setDispatcher(vaultDispatcher)
-    server.start()
-    val address = server.url("")
-    val addressStr = address.toString.substring(0, address.toString.length - 1) // Get address without tailing "/"
+    val (server, url) = startServer()
 
-    val vaultMap = Map(
-      "role" -> role,
-      "address" -> addressStr,
-      "authPath" -> "/v1/auth/kubernetes/noToken",
-      "jwt" -> jwt,
-      "secretPath" -> SecretPath
-    )
-
-    val config = ConfigFactory.empty()
-      .withValue("a", ConfigValueFactory.fromAnyRef("b"))
-      .withValue("vault", ConfigValueFactory.fromMap(vaultMap.asJava))
+    val config = createConfig(url, authPath = "/v1/auth/kubernetes/noToken")
 
     val substitutedConfig = CredentialSubstitutor.substituteCredentials(config)
 
@@ -197,25 +157,9 @@ class VaultSuite extends AnyFlatSpec with Matchers {
   }
 
   "CredentialSubstitutor" should "not retrieve credential if secret path is wrong" in {
-    val jwt = "fakejwt"
-    val role = "test"
-    val server = new MockWebServer
-    server.setDispatcher(vaultDispatcher)
-    server.start()
-    val address = server.url("")
-    val addressStr = address.toString.substring(0, address.toString.length - 1) // Get address without tailing "/"
+    val (server, url) = startServer()
 
-    val vaultMap = Map(
-      "role" -> role,
-      "address" -> addressStr,
-      "authPath" -> LoginPath,
-      "jwt" -> jwt,
-      "secretPath" -> "/v1/secret/foo2"
-    )
-
-    val config = ConfigFactory.empty()
-      .withValue("a", ConfigValueFactory.fromAnyRef("b"))
-      .withValue("vault", ConfigValueFactory.fromMap(vaultMap.asJava))
+    val config = createConfig(url, secretPath = "/v1/secret/foo2")
 
     val substitutedConfig = CredentialSubstitutor.substituteCredentials(config)
 
@@ -227,26 +171,10 @@ class VaultSuite extends AnyFlatSpec with Matchers {
   }
 
   "CredentialSubstitutor" should "does not substitute already existing key" in {
-    val jwt = "fakejwt"
-    val role = "test"
-    val server = new MockWebServer
-    server.setDispatcher(vaultDispatcher)
-    server.start()
-    val address = server.url("")
-    val addressStr = address.toString.substring(0, address.toString.length - 1) // Get address without tailing "/"
+    val (server, url) = startServer()
 
-    val vaultMap = Map(
-      "role" -> role,
-      "address" -> addressStr,
-      "authPath" -> LoginPath,
-      "jwt" -> jwt,
-      "secretPath" -> "/v1/secret/foo"
-    )
-
-    val config = ConfigFactory.empty()
-      .withValue("a", ConfigValueFactory.fromAnyRef("b"))
+    val config = createConfig(url)
       .withValue("foo", ConfigValueFactory.fromAnyRef("original"))
-      .withValue("vault", ConfigValueFactory.fromMap(vaultMap.asJava))
 
     val substitutedConfig = CredentialSubstitutor.substituteCredentials(config)
 
@@ -258,24 +186,17 @@ class VaultSuite extends AnyFlatSpec with Matchers {
   }
 
   "CredentialSubstitutor" should "try to read token from file if not specified" in {
-    val jwt = "fakejwt"
-    val role = "test"
-    val server = new MockWebServer
-    server.setDispatcher(vaultDispatcher)
-    server.start()
-    val address = server.url("")
-    val addressStr = address.toString.substring(0, address.toString.length - 1) // Get address without tailing "/"
+    val (server, url) = startServer()
 
     val vaultMap = Map(
-      "role" -> role,
-      "address" -> "http://localhost:3243",
+      "role" -> Role,
+      "address" -> url,
       "authPath" -> LoginPath,
       "secretPath" -> "/v1/secret/foo"
     )
 
     val config = ConfigFactory.empty()
       .withValue("a", ConfigValueFactory.fromAnyRef("b"))
-      .withValue("foo", ConfigValueFactory.fromAnyRef("original"))
       .withValue("vault", ConfigValueFactory.fromMap(vaultMap.asJava))
 
     val substitutedConfig = intercept[FileNotFoundException](CredentialSubstitutor.substituteCredentials(config))
