@@ -21,7 +21,6 @@ import io.fabric8.kubernetes.client.{DefaultKubernetesClient, KubernetesClientEx
 import org.apache.commons.io.FileUtils
 import org.apache.commons.lang.RandomStringUtils
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.streaming.Trigger
 import org.slf4j.LoggerFactory
 
 import java.io.File

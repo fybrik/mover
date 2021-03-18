@@ -21,21 +21,21 @@ import scala.util.Try
   * Configuration object that stores simple configuration that is given to the mover in a struct.
   * TODO maybe replace this with something else
   */
-case class SparkConfig(
-    appName: String = "transfer",
-    driverCores: Option[Int] = None,
-    numExecutors: Int = 0,
-    executorCores: Int = 1,
-    executorMemory: String = "4g",
-    image: Option[String] = None,
-    imagePullPolicy: Option[String] = None,
-    shufflePartitions: Int = 10,
-    additionalOptions: Map[String, String] = Map.empty[String, String]
+class SparkConfig(
+    val appName: String = "transfer",
+    val driverCores: Option[Int] = None,
+    val numExecutors: Int = 0,
+    val executorCores: Int = 1,
+    val executorMemory: String = "4g",
+    val image: Option[String] = None,
+    val imagePullPolicy: Option[String] = None,
+    val shufflePartitions: Int = 10,
+    val additionalOptions: Map[String, String] = Map.empty[String, String]
 )
 
 object SparkConfig {
   def parse(config: Config): SparkConfig = {
-    SparkConfig(
+    new SparkConfig(
       if (config.hasPath("appName")) config.getString("appName") else "transfer",
       ConfigUtils.opt(config, "driverCores").map(s => Try(s.toInt).getOrElse(1)),
       if (config.hasPath("numExecutors")) config.getInt("numExecutors") else 0,
