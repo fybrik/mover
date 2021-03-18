@@ -12,12 +12,6 @@
   */
 package com.ibm.m4d.mover
 
-import java.io.File
-import java.nio.charset.Charset
-import java.time.format.DateTimeFormatter
-import java.time.{ZoneId, ZonedDateTime}
-
-import com.ibm.m4d.mover.DataType.ChangeData
 import com.ibm.m4d.mover.conf.CredentialSubstitutor
 import com.ibm.m4d.mover.datastore.{DataStore, DataStoreBuilder}
 import com.ibm.m4d.mover.spark.{SnapshotAggregator, SparkConfig, SparkOutputCounter, SparkUtils}
@@ -26,9 +20,14 @@ import com.typesafe.config.ConfigFactory
 import io.fabric8.kubernetes.client.{DefaultKubernetesClient, KubernetesClientException}
 import org.apache.commons.io.FileUtils
 import org.apache.commons.lang.RandomStringUtils
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.streaming.Trigger
 import org.slf4j.LoggerFactory
 
+import java.io.File
+import java.nio.charset.Charset
+import java.time.format.DateTimeFormatter
+import java.time.{ZoneId, ZonedDateTime}
 import scala.util.control.NonFatal
 
 /**
@@ -44,7 +43,7 @@ object Transfer {
   private val logger = LoggerFactory.getLogger(Transfer.getClass)
 
   def main(args: Array[String]): Unit = {
-    logger.info("Starting streaming application...")
+    logger.info("Starting transfer application...")
     if (args.length != 1) {
       throw new IllegalArgumentException(
         "Please specify the path to the config file as only parameter!"
@@ -52,32 +51,7 @@ object Transfer {
     }
     val config = CredentialSubstitutor.substituteCredentials(ConfigFactory.parseFile(new File(args(0))).resolve())
 
-    val dataFlowType = if (config.hasPath("flowType")) {
-      DataFlowType.parse(config.getString("flowType"))
-    } else {
-      DataFlowType.Batch
-    }
-
-    val sourceDataType = if (config.hasPath("readDataType")) {
-      DataType.parse(config.getString("readDataType"))
-    } else {
-      DataType.LogData
-    }
-
-    val targetDataType = if (config.hasPath("writeDataType")) {
-      DataType.parse(config.getString("writeDataType"))
-    } else {
-      sourceDataType
-    }
-
-    val writeOperation = if (config.hasPath("writeOperation")) {
-      WriteOperation.parse(config.getString("writeOperation"))
-    } else {
-      dataFlowType match {
-        case DataFlowType.Batch  => WriteOperation.Overwrite
-        case DataFlowType.Stream => WriteOperation.Append
-      }
-    }
+    val transferConfig = TransferConfig.apply(config)
 
     // Load source and target data stores
     val source = DataStoreBuilder.buildSource(config).recover { case NonFatal(e) => throw e }.get
@@ -95,90 +69,7 @@ object Transfer {
     val spark = SparkUtils.sparkSession("transfer", debug = false, local = false, sparkConfig = sparkConf, additionalOptions = additionalSparkConfig)
 
     try {
-
-      // Read data frame given the data flow type and source data type
-      // More information about data flows and data types can be found in [[DataFlowType]], [[DataType]]
-      // or in the Mover-matrix.md description.
-      val sourceDF = source.read(spark, dataFlowType, sourceDataType)
-
-      // If the source data type is change data and the target data type is log data a snapshot has to be performed for a batch
-      // process in order to only filter out the last valid value for a key.
-      // If the source data type is log data no snapshot has to be performed as log data is already a snapshot.
-      val performSnapshot = sourceDataType == DataType.ChangeData && targetDataType == DataType.LogData && dataFlowType == DataFlowType.Batch
-
-      val df = if (performSnapshot) {
-        logger.info("Performing a snapshot of the source...")
-        SnapshotAggregator.createSnapshot(sourceDF)
-      } else {
-        if (dataFlowType == DataFlowType.Stream) {
-          if (sourceDataType == DataType.ChangeData) {
-            if (targetDataType == DataType.LogData) {
-              logger.warn("WARNING: Source data type is change data and target data type is log data" +
-                " in a stream scenario. A proper snapshot cannot be performed in this scenario " +
-                "so the data is just mapped to the value. This may lead to duplicate values and loss of nullable information!")
-              sourceDF.select("value.*")
-            } else {
-              // If source and target data type is ChangeData then only
-              // keep key and value and continue... TODO maybe Kafka needs to keep partition information?
-              sourceDF.select("key", "value")
-            }
-          } else {
-            sourceDF
-          }
-        } else {
-          sourceDF
-        }
-      }
-
-      // Apply transformations to the data frame. Depending if it's log data or change data different
-      // transform methods have to be called. Transform methods usually return a newly transformed
-      // data frame.
-      val transformedDF = try {
-        transformations
-          .foldLeft(df) { case (df, transformation) =>
-            sourceDataType match {
-              case DataType.LogData                          => transformation.transformLogData(df)
-              case DataType.ChangeData if performSnapshot    => transformation.transformLogData(df) // If a snapshot has already been performed treat data as log data
-              case DataType.ChangeData if !performSnapshot   => transformation.transformChangeData(df)
-            }
-          }
-      } catch {
-        case NonFatal(e) =>
-          val msg = "Configuring the transformations failed with message: " + e.getMessage
-          writeTerminationMessage(msg)
-          throw e
-      }
-
-      dataFlowType match {
-        case DataFlowType.Batch =>
-
-          val counter = SparkOutputCounter.createAndRegister(spark)
-          target.write(transformedDF, targetDataType, writeOperation)
-
-          logger.info(s"Transfer done!")
-          val numRecords = counter.lastNumOfOutputRows match {
-            case Some(count) =>
-              logger.info(s"Wrote $count records!")
-              count
-            case None =>
-              logger.warn("Could not find any counts!")
-              -1L
-          }
-
-          val msg = s"Ingested $numRecords records!"
-          writeK8sEvent(msg, "Success")
-
-          writeTerminationMessage(msg)
-
-        case DataFlowType.Stream =>
-          val stream = target.writeStream(transformedDF, targetDataType, writeOperation)
-          val s = stream
-            .trigger(Trigger.ProcessingTime(config.getString("triggerInterval")))
-            .start()
-
-          s.awaitTermination()
-      }
-
+      sparkProcessing(spark, transferConfig, source, target, transformations)
     } catch {
       case NonFatal(e) =>
         val msg = "Moving data failed when writing with message: " + e.getMessage
@@ -186,9 +77,99 @@ object Transfer {
         throw e
     } finally {
       spark.stop()
-      if (!sys.props.get("IS_TEST").contains("true")) {
-        sys.exit(0) // Somehow Spark3 does not stop by itself
+    }
+    if (!sys.props.get("IS_TEST").contains("true")) {
+      sys.exit(0) // Somehow Spark3 does not stop by itself
+    }
+  }
+
+  def sparkProcessing(
+      spark: SparkSession,
+      transferConfig: TransferConfig,
+      source: DataStore,
+      target: DataStore,
+      transformations: Seq[Transformation]
+  ): Unit = {
+    // Read data frame given the data flow type and source data type
+    // More information about data flows and data types can be found in [[DataFlowType]], [[DataType]]
+    // or in the Mover-matrix.md description.
+    val sourceDF = source.read(spark, transferConfig.dataFlowType, transferConfig.sourceDataType)
+
+    // If the source data type is change data and the target data type is log data a snapshot has to be performed for a batch
+    // process in order to only filter out the last valid value for a key.
+    // If the source data type is log data no snapshot has to be performed as log data is already a snapshot.
+    val performSnapshot = transferConfig.sourceDataType == DataType.ChangeData &&
+      transferConfig.targetDataType == DataType.LogData &&
+      transferConfig.dataFlowType == DataFlowType.Batch
+
+    val df = if (performSnapshot) {
+      logger.info("Performing a snapshot of the source...")
+      SnapshotAggregator.createSnapshot(sourceDF)
+    } else {
+      if (transferConfig.dataFlowType == DataFlowType.Stream &&
+        transferConfig.sourceDataType == DataType.ChangeData) {
+        if (transferConfig.targetDataType == DataType.LogData) {
+          logger.warn("WARNING: Source data type is change data and target data type is log data" +
+            " in a stream scenario. A proper snapshot cannot be performed in this scenario " +
+            "so the data is just mapped to the value. This may lead to duplicate values and loss of nullable information!")
+          sourceDF.select("value.*")
+        } else {
+          // If source and target data type is ChangeData then only
+          // keep key and value and continue... TODO maybe Kafka needs to keep partition information?
+          sourceDF.select("key", "value")
+        }
+      } else {
+        sourceDF
       }
+    }
+
+    // Apply transformations to the data frame. Depending if it's log data or change data different
+    // transform methods have to be called. Transform methods usually return a newly transformed
+    // data frame.
+    val transformedDF = try {
+      transformations
+        .foldLeft(df) { case (df, transformation) =>
+          transferConfig.sourceDataType match {
+            case DataType.LogData                          => transformation.transformLogData(df)
+            case DataType.ChangeData if performSnapshot    => transformation.transformLogData(df) // If a snapshot has already been performed treat data as log data
+            case DataType.ChangeData if !performSnapshot   => transformation.transformChangeData(df)
+          }
+        }
+    } catch {
+      case NonFatal(e) =>
+        val msg = "Configuring the transformations failed with message: " + e.getMessage
+        writeTerminationMessage(msg)
+        throw e
+    }
+
+    transferConfig.dataFlowType match {
+      case DataFlowType.Batch =>
+
+        val counter = SparkOutputCounter.createAndRegister(spark)
+        target.write(transformedDF, transferConfig.targetDataType, transferConfig.writeOperation)
+
+        logger.info(s"Transfer done!")
+        val numRecords = counter.lastNumOfOutputRows match {
+          case Some(count) =>
+            logger.info(s"Wrote $count records!")
+            count
+          case None =>
+            logger.warn("Could not find any counts!")
+            -1L
+        }
+
+        val msg = s"Ingested $numRecords records!"
+        writeK8sEvent(msg, "Success")
+
+        writeTerminationMessage(msg)
+
+      case DataFlowType.Stream =>
+        val stream = target.writeStream(transformedDF, transferConfig.targetDataType, transferConfig.writeOperation)
+        val s = stream
+          .trigger(transferConfig.trigger)
+          .start()
+
+        s.awaitTermination()
     }
   }
 

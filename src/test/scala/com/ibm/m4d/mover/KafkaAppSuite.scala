@@ -110,6 +110,8 @@ class KafkaAppSuite extends AnyFlatSpec with ForAllTestContainer with SparkTest 
       "source.kafka.kafkaTopic" -> ("batch-cdc-" + format),
       "source.kafka.schemaRegistryURL" -> registryUrl,
       "source.kafka.serializationFormat" -> format,
+      "transformations.0.action" -> "digest",
+      "transformations.0.columns.0" -> "s",
       "readDataType" -> "cdc",
       "writeDataType" -> "logdata",
       "writeOperation" -> "overwrite",
@@ -211,6 +213,108 @@ class KafkaAppSuite extends AnyFlatSpec with ForAllTestContainer with SparkTest 
     Files.write(tempConf, newConf.root().render(ConfigRenderOptions.concise()).getBytes())
 
     val kafka = KafkaBuilder.buildSource(newConf).get.asInstanceOf[Kafka]
+
+    kafka.deleteTarget()
+  }
+
+  behavior of "streams"
+  it should "append data to a file" in {
+    FileUtils.deleteDirectory(new File("test.parq"))
+    System.setProperty("IS_TEST", "true")
+    val format = "avro"
+    val registryUrl = "http://" + registryContainer.containerIpAddress + ":" + registryContainer.mappedPort(8080) + "/api/ccompat"
+    val baseConf = ConfigFactory.parseFile(new File("src/main/resources/kafka-to-local.conf"))
+    val newConf = ConfigFactory.parseMap(Map(
+      "source.kafka.kafkaBrokers" -> kafkaContainer.bootstrapServers,
+      "source.kafka.kafkaTopic" -> ("batch-log-non-existant"),
+      "source.kafka.schemaRegistryURL" -> registryUrl,
+      "source.kafka.serializationFormat" -> format,
+      "flowType" -> "stream",
+      "readDataType" -> "logdata",
+      "writeDataType" -> "logdata",
+      "writeOperation" -> "append",
+      "triggerInterval" -> "once",
+    ).asJava).withFallback(baseConf)
+
+    val tempConf = Files.createTempFile("stream-log-" + format, ".json")
+    Files.write(tempConf, newConf.root().render(ConfigRenderOptions.concise()).getBytes())
+
+    val kafka = KafkaBuilder.buildSource(newConf).get.asInstanceOf[Kafka]
+
+    withSparkSession { spark =>
+      import spark.implicits._
+
+      val df = spark.createDataset(data).toDF()
+        .setNullableStateOfColumn("i", nullable = false)
+        .setNullableStateOfColumn("d", nullable = false)
+
+      val kafkaDF = KafkaUtils.toKafkaWriteableDF(df, Seq(df("i")))
+
+      KafkaUtils.writeToKafka(kafkaDF, kafka)
+    }
+
+    Transfer.main(Array(tempConf.toAbsolutePath.toString))
+
+    withSparkSession { spark =>
+      import spark.implicits._
+      val rdf = spark.read.parquet("test.parq")
+      rdf.schema.names should contain theSameElementsAs Seq("key", "value", "topic", "partition", "offset", "timestamp", "timestampType")
+      val rData = rdf.select("value.*").as[TestClass].collect()
+      rData should contain theSameElementsAs data
+    }
+
+    FileUtils.deleteDirectory(new File("test.parq"))
+    kafka.deleteTarget()
+  }
+
+  it should "write data out to Kafka again" in {
+    System.setProperty("IS_TEST", "true")
+    val format = "avro"
+    val registryUrl = "http://" + registryContainer.containerIpAddress + ":" + registryContainer.mappedPort(8080) + "/api/ccompat"
+    val baseConf = ConfigFactory.parseFile(new File("src/main/resources/kafka-to-kafka.conf"))
+    val newConf = ConfigFactory.parseMap(Map(
+      "source.kafka.kafkaBrokers" -> kafkaContainer.bootstrapServers,
+      "source.kafka.kafkaTopic" -> "stream-log-src",
+      "source.kafka.schemaRegistryURL" -> registryUrl,
+      "source.kafka.serializationFormat" -> format,
+      "destination.kafka.kafkaBrokers" -> kafkaContainer.bootstrapServers,
+      "destination.kafka.kafkaTopic" -> "stream-log-target",
+      "destination.kafka.schemaRegistryURL" -> registryUrl,
+      "destination.kafka.serializationFormat" -> format,
+      "flowType" -> "stream",
+      "readDataType" -> "logdata",
+      "writeDataType" -> "logdata",
+      "writeOperation" -> "append",
+      "triggerInterval" -> "once",
+    ).asJava).withFallback(baseConf)
+
+    val tempConf = Files.createTempFile("stream-log-src" + format, ".json")
+    Files.write(tempConf, newConf.root().render(ConfigRenderOptions.concise()).getBytes())
+
+    val kafka = KafkaBuilder.buildSource(newConf).get.asInstanceOf[Kafka]
+
+    withSparkSession { spark =>
+      import spark.implicits._
+
+      val df = spark.createDataset(data).toDF()
+        .setNullableStateOfColumn("i", nullable = false)
+        .setNullableStateOfColumn("d", nullable = false)
+
+      val kafkaDF = KafkaUtils.toKafkaWriteableDF(df, Seq(df("i")))
+
+      KafkaUtils.writeToKafka(kafkaDF, kafka)
+    }
+
+    Transfer.main(Array(tempConf.toAbsolutePath.toString))
+
+    withSparkSession { spark =>
+      import spark.implicits._
+      val kafkaTarget = KafkaBuilder.buildTarget(newConf).get.asInstanceOf[Kafka]
+      val kafkaDF = KafkaUtils.readFromKafka(spark, kafkaTarget)
+      kafkaDF.schema.names should contain theSameElementsAs Seq("key", "value", "topic", "partition", "offset", "timestamp", "timestampType")
+      val rData = kafkaDF.select("value.*").as[TestClass].collect()
+      rData should contain theSameElementsAs data
+    }
 
     kafka.deleteTarget()
   }
