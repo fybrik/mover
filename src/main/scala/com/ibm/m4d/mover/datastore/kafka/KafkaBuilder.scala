@@ -52,7 +52,7 @@ case object KafkaBuilder extends DataStoreBuilder {
       case (Some(_), None) => return Failure(new IllegalArgumentException("A sslTruststoreLocation has to be specified!"))
     }
 
-    Try(Kafka(
+    Try(new Kafka(
       iType,
       config.getString("kafkaBrokers"),
       Try(config.getString("user")).getOrElse(""),

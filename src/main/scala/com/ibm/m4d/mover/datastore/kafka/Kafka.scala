@@ -29,18 +29,18 @@ import org.slf4j.LoggerFactory
   * [[DataStore]] implementation of a Kafka streaming system.
   * This supports multiple data flow modes and serialization formats.
   */
-case class Kafka(
+class Kafka(
     iType: InputType,
-    kafkaBrokers: String,
+    val kafkaBrokers: String,
     user: String,
     password: String,
-    kafkaTopic: String,
-    schemaRegistryURL: Option[String] = None,
-    keySchema: Option[String] = None,
-    valueSchema: Option[String] = None,
+    val kafkaTopic: String,
+    val schemaRegistryURL: Option[String] = None,
+    val keySchema: Option[String] = None,
+    val valueSchema: Option[String] = None,
     createSnapshot: Boolean = false,
-    raw: Boolean = false,
-    serializationFormat: SerializationFormat = SerializationFormat.Avro,
+    val raw: Boolean = false,
+    val serializationFormat: SerializationFormat = SerializationFormat.Avro,
     securityProtocol: String = "SASL_SSL",
     saslMechanism: String = "SCRAM-SHA-512",
     sslTruststoreLocation: Option[String] = None,
