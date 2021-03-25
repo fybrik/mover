@@ -19,14 +19,14 @@ import org.apache.spark.sql.DataFrame
   * This transformations filters rows according to the given filter clause that has to be valid Spark SQL code.
   */
 class FilterRowsTransformation(name: String, options: Config, allConfig: Config) extends Transformation(name, Seq.empty[String], options, allConfig) {
-  private val clauseOption = getOption("clause")
+  private val clause = getOption("clause").getOrElse(throw new IllegalArgumentException("No 'clause' specified for filterrows transformation!"))
 
   override def transformLogData(df: DataFrame): DataFrame = {
     // Apply filter clause on dataframe
-    clauseOption.map(clause => df.filter(clause)).getOrElse(df)
+    df.filter(clause)
   }
 
   override def transformChangeData(df: DataFrame): DataFrame = {
-    clauseOption.map(clause => df.filter(clause)).getOrElse(df)
+    df.filter(clause)
   }
 }

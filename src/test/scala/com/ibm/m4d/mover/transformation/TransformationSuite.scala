@@ -70,11 +70,46 @@ class TransformationSuite extends AnyFlatSpec with Matchers with SparkTest {
         MyClass(3, "c", 3.0)
       ))
 
-      val transformation = new FilterRowsTransformation("n", ConfigFactory.empty().withValue("clause", ConfigValueFactory.fromAnyRef("i == 1")), ConfigFactory.empty())
+      val s =
+        """
+          |transformation = [
+          |{
+          |  name = "n"
+          |  action = "filterrows"
+          |  options.clause = "i == 1"
+          |}
+         ]""".stripMargin
+
+      val config = ConfigFactory.parseString(s)
+
+      val transformation = Transformation.loadTransformations(config).head
 
       val transformedDF = transformation.transformLogData(df)
 
       transformedDF.count() shouldBe 1
+    }
+  }
+
+  it should "fail filter rows in log data if no clause is specified" in {
+    withSparkSession { spark =>
+      val df = spark.createDataFrame(Seq(
+        MyClass(1, "a", 1.0),
+        MyClass(2, "b", 2.0),
+        MyClass(3, "c", 3.0)
+      ))
+
+      val s =
+        """
+          |transformation = [
+          |{
+          |  name = "n"
+          |  action = "filterrows"
+          |}
+         ]""".stripMargin
+
+      val config = ConfigFactory.parseString(s)
+
+      val transformation = intercept[IllegalArgumentException](Transformation.loadTransformations(config).head)
     }
   }
 
@@ -86,7 +121,19 @@ class TransformationSuite extends AnyFlatSpec with Matchers with SparkTest {
         MyClass(3, "c", 3.0)
       ))
 
-      val transformation = new DigestColumnsTransformation("n", Seq("s"), ConfigFactory.empty(), ConfigFactory.empty())
+      val s =
+        """
+          |transformation = [
+          |{
+          |  name = "n"
+          |  action = "digestcolumns"
+          |  options.algo = "md5"
+          |  columns = ["s"]
+          |}
+         ]""".stripMargin
+
+      val config = ConfigFactory.parseString(s)
+      val transformation = Transformation.loadTransformations(config).head
 
       val transformedDF = transformation.transformLogData(df)
 
@@ -251,18 +298,18 @@ class TransformationSuite extends AnyFlatSpec with Matchers with SparkTest {
         |transformation = [
         |{
         |  name = "n"
-        |  action = "RemoveColumn"
+        |  action = "RemoveColumns"
         |  columns = ["c1"]
         |},
         |{
         |  name = "n2"
-        |  action = "RemoveColumn"
+        |  action = "RemoveColumns"
         |  columns = ["c2"]
         |}
         |,
         |{
         |  name = "n"
-        |  action = "RedactColumn"
+        |  action = "RedactColumns"
         |  columns = ["c3"]
         |}]""".stripMargin
 
@@ -282,6 +329,26 @@ class TransformationSuite extends AnyFlatSpec with Matchers with SparkTest {
     val ts2 = Transformation.merge(seq)
 
     ts2 should have size 1
+  }
+
+  it should "load empty transformations" in {
+    val c = ConfigFactory.empty()
+    val ts = Transformation.loadTransformations(c)
+    ts should have size 0
+  }
+
+  it should "fail when loading an unknown transformation" in {
+    val s =
+      """
+        |transformation = [
+        |{
+        |  name = "n"
+        |  action = "RandomAction"
+        |  columns = ["c1"]
+        |}]""".stripMargin
+
+    val c = ConfigFactory.parseString(s)
+    intercept[IllegalArgumentException](Transformation.loadTransformations(c))
   }
 }
 
