@@ -136,11 +136,11 @@ object Transformation {
         val action = conf.getString("action")
         action.toLowerCase() match {
           // TODO allow for custom transformations via class loading
-          case "delete" | "removecolumn" | "removecolumns" => RemoveColumnTransformation(name, columns, options, config)
-          case "digest" | "digestcolumn" | "digestcolumns" => DigestColumnsTransformation(name, columns, options, config)
-          case "redact" | "redactcolumn" | "redactcolumns" => RedactColumnsTransformation(name, columns, options, config)
-          case "filter" | "filterrows"                     => FilterRowsTransformation(name, options, config)
-          case "sample" | "samplerows"                     => SampleRowsTransformation(name, options, config)
+          case "delete" | "removecolumn" | "removecolumns" => new RemoveColumnTransformation(name, columns, options, config)
+          case "digest" | "digestcolumn" | "digestcolumns" => new DigestColumnsTransformation(name, columns, options, config)
+          case "redact" | "redactcolumn" | "redactcolumns" => new RedactColumnsTransformation(name, columns, options, config)
+          case "filter" | "filterrows"                     => new FilterRowsTransformation(name, options, config)
+          case "sample" | "samplerows"                     => new SampleRowsTransformation(name, options, config)
           case "class" =>
             Class.forName(conf.getString("class"))
               .getDeclaredConstructor(ConstructorArgs: _*)

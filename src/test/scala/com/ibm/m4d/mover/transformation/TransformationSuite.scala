@@ -31,7 +31,7 @@ class TransformationSuite extends AnyFlatSpec with Matchers with SparkTest {
         MyClass(3, "c", 3.0)
       ))
 
-      val transformation = RemoveColumnTransformation("n", Seq("i"), ConfigFactory.empty(), ConfigFactory.empty())
+      val transformation = new RemoveColumnTransformation("n", Seq("i"), ConfigFactory.empty(), ConfigFactory.empty())
 
       val transformedDF = transformation.transformLogData(df)
 
@@ -48,7 +48,7 @@ class TransformationSuite extends AnyFlatSpec with Matchers with SparkTest {
         MyClassKV(MyClassKey(3), MyClass(3, "c", 3.0))
       ))
 
-      val transformation = RemoveColumnTransformation("n", Seq("s"), ConfigFactory.empty(), ConfigFactory.empty())
+      val transformation = new RemoveColumnTransformation("n", Seq("s"), ConfigFactory.empty(), ConfigFactory.empty())
 
       val transformedDF = transformation.transformChangeData(df)
 
@@ -70,7 +70,7 @@ class TransformationSuite extends AnyFlatSpec with Matchers with SparkTest {
         MyClass(3, "c", 3.0)
       ))
 
-      val transformation = FilterRowsTransformation("n", ConfigFactory.empty().withValue("clause", ConfigValueFactory.fromAnyRef("i == 1")), ConfigFactory.empty())
+      val transformation = new FilterRowsTransformation("n", ConfigFactory.empty().withValue("clause", ConfigValueFactory.fromAnyRef("i == 1")), ConfigFactory.empty())
 
       val transformedDF = transformation.transformLogData(df)
 
@@ -86,7 +86,7 @@ class TransformationSuite extends AnyFlatSpec with Matchers with SparkTest {
         MyClass(3, "c", 3.0)
       ))
 
-      val transformation = DigestColumnsTransformation("n", Seq("s"), ConfigFactory.empty(), ConfigFactory.empty())
+      val transformation = new DigestColumnsTransformation("n", Seq("s"), ConfigFactory.empty(), ConfigFactory.empty())
 
       val transformedDF = transformation.transformLogData(df)
 
@@ -108,7 +108,7 @@ class TransformationSuite extends AnyFlatSpec with Matchers with SparkTest {
         MyClass(3, "c", 3.0)
       ))
 
-      val transformation = RedactColumnsTransformation("n", Seq("s"), ConfigFactory.empty(), ConfigFactory.empty())
+      val transformation = new RedactColumnsTransformation("n", Seq("s"), ConfigFactory.empty(), ConfigFactory.empty())
 
       val transformedDF = transformation.transformLogData(df)
 
@@ -130,7 +130,7 @@ class TransformationSuite extends AnyFlatSpec with Matchers with SparkTest {
         MyClassKV(MyClassKey(3), MyClass(3, "c", 3.0))
       ))
 
-      val transformation = RedactColumnsTransformation("n", Seq("s"), ConfigFactory.empty(), ConfigFactory.empty())
+      val transformation = new RedactColumnsTransformation("n", Seq("s"), ConfigFactory.empty(), ConfigFactory.empty())
 
       val transformedDF = transformation.transformChangeData(df)
       import spark.implicits._
@@ -146,6 +146,76 @@ class TransformationSuite extends AnyFlatSpec with Matchers with SparkTest {
         MyClass(1, "XXXXXXXXXX", 1.0),
         MyClass(2, "XXXXXXXXXX", 2.0),
         MyClass(3, "XXXXXXXXXX", 3.0)
+      )
+    }
+  }
+
+  it should "load a third party transformation for log data (NoopTransformation)" in {
+    withSparkSession { spark =>
+      val df = spark.createDataFrame(Seq(
+        MyClass(1, "a", 1.0),
+        MyClass(2, "b", 2.0),
+        MyClass(3, "c", 3.0)
+      ))
+
+      val s =
+        """
+          |transformation = [
+          |{
+          |  name = "noop"
+          |  action = "class"
+          |  class = "com.ibm.m4d.mover.transformation.NoopTransformation"
+          |  options.a = "true"
+          |  columns = ["s"]
+          |}
+         ]""".stripMargin
+
+      val config = ConfigFactory.parseString(s)
+
+      val transformation = Transformation.loadTransformations(config).head
+
+      transformation.additionalSparkConfig() should have size 0
+
+      val transformedDF = transformation.transformLogData(df)
+      import spark.implicits._
+      transformedDF.as[MyClass].collect() shouldBe Array(
+        MyClass(1, "a", 1.0),
+        MyClass(2, "b", 2.0),
+        MyClass(3, "c", 3.0)
+      )
+    }
+  }
+
+  it should "load a third party transformation for change data (NoopTransformation)" in {
+    withSparkSession { spark =>
+      val df = spark.createDataFrame(Seq(
+        MyClassKV(MyClassKey(1), MyClass(1, "a", 1.0)),
+        MyClassKV(MyClassKey(2), MyClass(2, "b", 2.0)),
+        MyClassKV(MyClassKey(3), MyClass(3, "c", 3.0))
+      ))
+
+      val s =
+        """
+          |transformation = [
+          |{
+          |  name = "noop"
+          |  action = "class"
+          |  class = "com.ibm.m4d.mover.transformation.NoopTransformation"
+          |  options.a = "true"
+          |  columns = ["s"]
+          |}
+         ]""".stripMargin
+
+      val config = ConfigFactory.parseString(s)
+
+      val transformation = Transformation.loadTransformations(config).head
+
+      val transformedDF = transformation.transformChangeData(df)
+      import spark.implicits._
+      KafkaUtils.mapToValue(transformedDF).as[MyClass].collect() shouldBe Array(
+        MyClass(1, "a", 1.0),
+        MyClass(2, "b", 2.0),
+        MyClass(3, "c", 3.0)
       )
     }
   }
@@ -166,7 +236,7 @@ class TransformationSuite extends AnyFlatSpec with Matchers with SparkTest {
         MyClass(10, "j", 10.0)
       ))
 
-      val transformation = SampleRowsTransformation("n", ConfigFactory.empty().withValue("fraction", ConfigValueFactory.fromAnyRef(0.2)), ConfigFactory.empty())
+      val transformation = new SampleRowsTransformation("n", ConfigFactory.empty().withValue("fraction", ConfigValueFactory.fromAnyRef(0.2)), ConfigFactory.empty())
 
       val transformedDF = transformation.transformLogData(df)
 
@@ -206,8 +276,8 @@ class TransformationSuite extends AnyFlatSpec with Matchers with SparkTest {
     ts(0).asInstanceOf[RemoveColumnTransformation].columns should contain theSameElementsAs Seq("c1", "c2")
 
     val seq = Seq(
-      RemoveColumnTransformation("n", Seq("c1"), ConfigFactory.empty(), ConfigFactory.empty()),
-      RemoveColumnTransformation("n", Seq("c2"), ConfigFactory.empty(), ConfigFactory.empty())
+      new RemoveColumnTransformation("n", Seq("c1"), ConfigFactory.empty(), ConfigFactory.empty()),
+      new RemoveColumnTransformation("n", Seq("c2"), ConfigFactory.empty(), ConfigFactory.empty())
     )
     val ts2 = Transformation.merge(seq)
 

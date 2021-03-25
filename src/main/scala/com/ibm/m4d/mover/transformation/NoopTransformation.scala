@@ -18,9 +18,7 @@ import org.apache.spark.sql.DataFrame
 /**
   * Ths is an example transformation that does nothing and is there for reference and testing.
   */
-case class NoopTransformation(name: String, columns: Seq[String], options: Config, allConfig: Config) extends Transformation(name, columns, options, allConfig) {
-  override def additionalSparkConfig(): Map[String, String] = Map.empty[String, String]
-
+class NoopTransformation(name: String, columns: Seq[String], options: Config, allConfig: Config) extends Transformation(name, columns, options, allConfig) {
   /**
     * Transforms a dataframe from a batch source that has the columns
     * at the root level of the dataframe.

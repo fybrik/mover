@@ -14,15 +14,13 @@ package com.ibm.m4d.mover.transformation
 
 import com.typesafe.config.Config
 import org.apache.spark.sql.DataFrame
-import org.slf4j.LoggerFactory
 
 /**
   * This transformation samples a subset of rows using the specified fraction number.
   * The sampling is handled by Spark.
   */
-case class SampleRowsTransformation(name: String, options: Config, allConfig: Config) extends Transformation(name, Seq.empty[String], options, allConfig) {
-  private val logger = LoggerFactory.getLogger(SampleRowsTransformation.getClass)
-  private val fraction = getOption("fraction").map(_.toDouble).getOrElse(0.25)
+class SampleRowsTransformation(name: String, options: Config, allConfig: Config) extends Transformation(name, Seq.empty[String], options, allConfig) {
+  private val fraction = getOptionOrElse("fraction", "0.25").toDouble
 
   override def transformLogData(df: DataFrame): DataFrame = {
     df.sample(fraction)
