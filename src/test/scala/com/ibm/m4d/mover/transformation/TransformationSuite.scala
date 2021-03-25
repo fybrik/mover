@@ -90,6 +90,34 @@ class TransformationSuite extends AnyFlatSpec with Matchers with SparkTest {
     }
   }
 
+  it should "filter rows in change data" in {
+    withSparkSession { spark =>
+      val df = spark.createDataFrame(Seq(
+        MyClassKV(MyClassKey(1), MyClass(1, "a", 1.0)),
+        MyClassKV(MyClassKey(2), MyClass(2, "b", 2.0)),
+        MyClassKV(MyClassKey(3), MyClass(3, "c", 3.0))
+      ))
+
+      val s =
+        """
+          |transformation = [
+          |{
+          |  name = "n"
+          |  action = "filterrows"
+          |  options.clause = "key.i == 1"
+          |}
+         ]""".stripMargin
+
+      val config = ConfigFactory.parseString(s)
+
+      val transformation = Transformation.loadTransformations(config).head
+
+      val transformedDF = transformation.transformChangeData(df)
+
+      transformedDF.count() shouldBe 1
+    }
+  }
+
   it should "fail filter rows in log data if no clause is specified" in {
     withSparkSession { spark =>
       val df = spark.createDataFrame(Seq(
@@ -335,6 +363,8 @@ class TransformationSuite extends AnyFlatSpec with Matchers with SparkTest {
     val c = ConfigFactory.empty()
     val ts = Transformation.loadTransformations(c)
     ts should have size 0
+
+    Transformation.merge(ts) should have size 0
   }
 
   it should "fail when loading an unknown transformation" in {
