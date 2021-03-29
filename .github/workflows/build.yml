@@ -41,7 +41,7 @@ jobs:
             ~/.m2/repository
             ~/.zinc
             ~/.sbt
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}-docker${{ hashFiles('src/main/docker/spark/*') }}
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}-docker${{ hashFiles('src/main/docker/spark/*') }}-${{ matrix.PROFILE }}
 #          restore-keys: ${{ runner.os }}-m2
       - name: Build and test jars
         run: mvn -B package -Plocal-to-ghcr -P${{ matrix.PROFILE }}

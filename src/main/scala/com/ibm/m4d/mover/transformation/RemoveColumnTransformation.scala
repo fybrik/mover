@@ -20,7 +20,7 @@ import scala.collection.JavaConverters._
 /**
   * This transformations removes a column from an existing data frame.
   */
-case class RemoveColumnTransformation(name: String, columns: Seq[String], options: Config, allConfig: Config) extends Transformation(name, columns, options, allConfig) {
+class RemoveColumnTransformation(val name: String, val columns: Seq[String], val options: Config, val allConfig: Config) extends Transformation(name, columns, options, allConfig) {
   private val logger = LoggerFactory.getLogger(getClass)
   override def additionalSparkConfig(): Map[String, String] = Map.empty[String, String]
 
@@ -77,7 +77,7 @@ case class RemoveColumnTransformation(name: String, columns: Seq[String], option
     val (sameOperations, otherOperations) = others.partition(_.isInstanceOf[RemoveColumnTransformation])
     val newTransformation = sameOperations
       .map(_.asInstanceOf[RemoveColumnTransformation])
-      .foldLeft(this)((op, t) => op.copy(columns = op.columns ++ t.columns))
+      .foldLeft(this)((op, t) => new RemoveColumnTransformation(op.name, op.columns ++ t.columns, op.options, op.allConfig))
 
     Seq(newTransformation) ++ otherOperations
   }

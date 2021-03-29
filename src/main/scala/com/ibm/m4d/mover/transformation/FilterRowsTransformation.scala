@@ -14,21 +14,19 @@ package com.ibm.m4d.mover.transformation
 
 import com.typesafe.config.Config
 import org.apache.spark.sql.DataFrame
-import org.slf4j.LoggerFactory
 
 /**
   * This transformations filters rows according to the given filter clause that has to be valid Spark SQL code.
   */
-case class FilterRowsTransformation(name: String, options: Config, allConfig: Config) extends Transformation(name, Seq.empty[String], options, allConfig) {
-  private val logger = LoggerFactory.getLogger(FilterRowsTransformation.getClass)
-  private val clauseOption = getOption("clause")
+class FilterRowsTransformation(name: String, options: Config, allConfig: Config) extends Transformation(name, Seq.empty[String], options, allConfig) {
+  private val clause = getOption("clause").getOrElse(throw new IllegalArgumentException("No 'clause' specified for filterrows transformation!"))
 
   override def transformLogData(df: DataFrame): DataFrame = {
     // Apply filter clause on dataframe
-    clauseOption.map(clause => df.filter(clause)).getOrElse(df)
+    df.filter(clause)
   }
 
   override def transformChangeData(df: DataFrame): DataFrame = {
-    clauseOption.map(clause => df.filter(clause)).getOrElse(df)
+    df.filter(clause)
   }
 }

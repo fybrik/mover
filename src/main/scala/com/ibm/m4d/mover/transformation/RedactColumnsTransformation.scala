@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory
   * This transformation redacts a value of given columns. This replaces the values of a column with a
   * given redactValue. The default is to replace the content of columns with some XXXX.
   */
-case class RedactColumnsTransformation(name: String, columns: Seq[String], options: Config, allConfig: Config) extends Transformation(name, columns, options, allConfig) {
+class RedactColumnsTransformation(name: String, columns: Seq[String], options: Config, allConfig: Config) extends Transformation(name, columns, options, allConfig) {
   private val logger = LoggerFactory.getLogger(getClass)
   private val redactValue = getOptionOrElse("redactValue", "XXXXXXXXXX")
 
@@ -34,7 +34,6 @@ case class RedactColumnsTransformation(name: String, columns: Seq[String], optio
     val newColumns = columnsSet.map { columnName =>
       if (columns.contains(columnName)) {
         logger.info(s"Redacting column $columnName in dataset!")
-        val fqColumnName = colName(columnName, struct)
 
         val meta: Metadata = getTransformMeta(df, columnName, "Redact", name, struct)
         lit(redactValue).as(columnName, meta)

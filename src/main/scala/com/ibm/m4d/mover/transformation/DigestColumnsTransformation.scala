@@ -21,9 +21,8 @@ import org.slf4j.LoggerFactory
   * This transformations builds the hash of given columns using the specified algorithm
   * and stores it back to the column name.
   */
-case class DigestColumnsTransformation(name: String, columns: Seq[String], options: Config, allConfig: Config) extends Transformation(name, columns, options, allConfig) {
-  private val logger = LoggerFactory.getLogger(DigestColumnsTransformation.getClass)
-  private val seed = getOption("seed").map(_.toLong).getOrElse(0)
+class DigestColumnsTransformation(name: String, columns: Seq[String], options: Config, allConfig: Config) extends Transformation(name, columns, options, allConfig) {
+  private val logger = LoggerFactory.getLogger(getClass)
   private val algo = getOptionOrElse("algo", "md5")
 
   private def digest(df: DataFrame, struct: Option[String]): DataFrame = {
@@ -39,11 +38,11 @@ case class DigestColumnsTransformation(name: String, columns: Seq[String], optio
         val fqColumnName = colName(columnName, struct)
         val meta = getTransformMeta(df, columnName, "Digest " + algo.toLowerCase, name, struct)
         algo.toLowerCase() match {
-          case "md5"     => md5(df(fqColumnName)).as(fqColumnName, meta)
-          case "sha1"    => sha1(df(fqColumnName)).as(fqColumnName, meta)
-          case "sha2"    => sha2(df(fqColumnName), 512).as(fqColumnName, meta)
-          case "crc32"   => crc32(df(fqColumnName)).as(fqColumnName, meta)
-          case "murmur3" => hash(df(fqColumnName)).as(fqColumnName, meta)
+          case "md5"     => md5(df(fqColumnName)).as(columnName, meta)
+          case "sha1"    => sha1(df(fqColumnName)).as(columnName, meta)
+          case "sha2"    => sha2(df(fqColumnName), 512).as(columnName, meta)
+          case "crc32"   => crc32(df(fqColumnName)).as(columnName, meta)
+          case "murmur3" => hash(df(fqColumnName)).as(columnName, meta)
           case _         => throw new IllegalArgumentException(s"Algorithm '$algo' is not supported!")
         }
 

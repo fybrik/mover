@@ -114,20 +114,18 @@ abstract class Transformation(name: String, columns: Seq[String], options: Confi
 
 object Transformation {
   private val ConstructorArgs = Array(classOf[String], classOf[Seq[String]], classOf[Config], classOf[Config])
-  // loads all transformation name to class mappings into a config object
-  // class mappings have to be specified in files called 'transformations.conf'.
-  private val loadedTransformations = getClass.getClassLoader.getResources("transformations.conf").asScala
-    .toSeq.foldLeft(ConfigFactory.empty()) { (conf, url) =>
-      val newConf = ConfigFactory.parseURL(url)
-      newConf.withFallback(conf)
-    }
+
   def loadTransformations(config: Config): Seq[Transformation] = {
     val transformations = if (config.hasPath("transformation")) {
       val transformations = config.getConfigList("transformation").asScala
 
       transformations.map { conf =>
         val name = conf.getString("name")
-        val columns = conf.getStringList("columns").asScala.toSeq
+        val columns = if (conf.hasPath("columns")) {
+          conf.getStringList("columns").asScala.toSeq
+        } else {
+          Seq.empty[String]
+        }
         val options = if (conf.hasPath("options")) {
           conf.getConfig("options")
         } else {
@@ -135,27 +133,18 @@ object Transformation {
         }
         val action = conf.getString("action")
         action.toLowerCase() match {
-          // TODO allow for custom transformations via class loading
-          case "delete" | "removecolumn" | "removecolumns" => RemoveColumnTransformation(name, columns, options, config)
-          case "digest" | "digestcolumn" | "digestcolumns" => DigestColumnsTransformation(name, columns, options, config)
-          case "redact" | "redactcolumn" | "redactcolumns" => RedactColumnsTransformation(name, columns, options, config)
-          case "filter" | "filterrows"                     => FilterRowsTransformation(name, options, config)
-          case "sample" | "samplerows"                     => SampleRowsTransformation(name, options, config)
+          case "removecolumns" => new RemoveColumnTransformation(name, columns, options, config)
+          case "digestcolumns" => new DigestColumnsTransformation(name, columns, options, config)
+          case "redactcolumns" => new RedactColumnsTransformation(name, columns, options, config)
+          case "filterrows"    => new FilterRowsTransformation(name, options, config)
+          case "samplerows"    => new SampleRowsTransformation(name, options, config)
           case "class" =>
             Class.forName(conf.getString("class"))
               .getDeclaredConstructor(ConstructorArgs: _*)
               .newInstance(name, columns, options, config)
               .asInstanceOf[Transformation]
           case _ =>
-            if (loadedTransformations.hasPath(action.toLowerCase())) {
-              val cl = loadedTransformations.getString(action.toLowerCase())
-              Class.forName(cl)
-                .getDeclaredConstructor(ConstructorArgs: _*)
-                .newInstance(name, columns, options, config)
-                .asInstanceOf[Transformation]
-            } else {
-              throw new IllegalArgumentException(s"No transformation found with name '${action.toLowerCase()}'!")
-            }
+            throw new IllegalArgumentException(s"No transformation found with name '${action.toLowerCase()}'!")
         }
       }
     } else {
