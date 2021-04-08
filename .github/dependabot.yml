@@ -15,6 +15,7 @@ updates:
       - dependency-name: "io.fabric8:kubernetes-client"
       - dependency-name: "org.jacoco:jacoco-maven-plugin"
       - dependency-name: "commons-codec:commons-codec"
+      - dependency-name: "com.fasterxml.jackson.core:jackson-annotations"
       - dependency-name: "org.apache.spark:*"
         versions: ["3.x"]
       - dependency-name: "org.scala-lang:scala-library"
