@@ -1437,7 +1437,7 @@ spec:
         - name: ENABLE_WEBHOOKS
           value: "true"
         - name: MOVER_IMAGE
-          value: ghcr.io/the-mesh-for-data/mover:latest
+          value: ghcr.io/mesh-for-data/mover:latest
         - name: IMAGE_PULL_POLICY
           value: Always
         - name: SECRET_PROVIDER_URL

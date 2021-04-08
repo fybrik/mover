@@ -1,6 +1,6 @@
-[![GitHub Actions Build](https://github.com/IBM/the-mesh-for-data-mover/actions/workflows/build.yml/badge.svg)](https://github.com/IBM/the-mesh-for-data-mover/actions/workflows/build.yml)
+[![GitHub Actions Build](https://github.com/the-mesh-for-data/the-mesh-for-data-mover/actions/workflows/build.yml/badge.svg)](https://github.com/the-mesh-for-data/the-mesh-for-data-mover/actions/workflows/build.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![codecov](https://codecov.io/gh/IBM/the-mesh-for-data-mover/branch/master/graph/badge.svg)](https://codecov.io/gh/IBM/the-mesh-for-data-mover)
+[![codecov](https://codecov.io/gh/the-mesh-for-data/the-mesh-for-data-mover/branch/master/graph/badge.svg)](https://codecov.io/gh/the-mesh-for-data/the-mesh-for-data-mover)
 
 
 # Mover
@@ -23,7 +23,7 @@ The CI pipeline of the mover builds an updated image as new pull
 requests are merged and on a schedule so that security
 updates of the base image are applied.
 
-The latest image can be found at: `ghcr.io/the-mesh-for-data/mover:latest`
+The latest image can be found at: `ghcr.io/mesh-for-data/mover:latest`
 
 ### Setting up a minimal movement only the-mesh-for-data version
 
@@ -82,7 +82,7 @@ docker network connect kind kind-registry
 ```
 docker build -t spark-base:2.4.7 -f src/main/docker/spark/spark2.Dockerfile src/main/docker/spark
 mvn package jib:dockerBuild -DskipTests -Plocal-registry
-docker push localhost:5000/the-mesh-for-data/mover:latest
+docker push localhost:5000/mesh-for-data/mover:latest
 ```
 
 ### Testing with Kafka
@@ -97,7 +97,7 @@ An entry has to be added to your local /etc/hosts file so that `kafka0` maps to 
 
 ### Running images
 
-The BatchTransfer spec.image parameter has to be set to `localhost:5000/the-mesh-for-data/mover:latest`.
+The BatchTransfer spec.image parameter has to be set to `localhost:5000/mesh-for-data/mover:latest`.
 
 ## Local testing with _minikube_
 ### Setting up the registry with _minikube_
