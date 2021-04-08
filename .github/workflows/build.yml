@@ -20,7 +20,7 @@ jobs:
       matrix:
         include:
         - SPARK_VERSION: 2.4.7
-          JAVA_VERSION: 1.8
+          JAVA_VERSION: 8
           PROFILE: spark2
           TAG: latest
         - SPARK_VERSION: 3.0.2
