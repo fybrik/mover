@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - master
+    tags:
+      - '*'
   pull_request:
     branches:
       - master
@@ -22,10 +24,12 @@ jobs:
           JAVA_VERSION: 8
           PROFILE: spark2
           TAG: latest
+          RELEASE_TAG_SUFFIX: ''
         - SPARK_VERSION: 3.0.2
           JAVA_VERSION: 11
           PROFILE: spark3
           TAG: latest-spark3
+          RELEASE_TAG_SUFFIX: '-spark3'
     steps:
       - uses: actions/checkout@v2
       - name: Set up JDK ${{ matrix.JAVA_VERSION }}
@@ -43,6 +47,7 @@ jobs:
             ~/.sbt
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}-docker${{ hashFiles('src/main/docker/spark/*') }}-${{ matrix.PROFILE }}
 #          restore-keys: ${{ runner.os }}-m2
+      - run: echo "-${{ matrix.RELEASE_TAG_SUFFIX }}-"
       - name: Build and test jars
         run: mvn -B package -Plocal-to-ghcr -P${{ matrix.PROFILE }}
       - name: Upload coverage to Codecov
@@ -75,6 +80,17 @@ jobs:
       - name: Docker login
         if: ${{ github.event_name != 'pull_request' }}
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login -u "${{ github.actor }}" --password-stdin "${{ env.DOCKER_HOSTNAME }}"
+      - id: version
+        name: Infer version
+        run: echo ::set-output name=version::${GITHUB_REF#refs/*/}
+      - run: echo ${{ steps.version.outputs.version }}
       - name: Docker push
         if: ${{ github.event_name != 'pull_request' }}
         run: docker push ghcr.io/mesh-for-data/mover:${{ matrix.TAG }}
+      - name: Retag image for tag
+        if: contains(github.ref, 'tags')
+        run: docker tag ghcr.io/mesh-for-data/mover:${{ matrix.TAG }} ghcr.io/mesh-for-data/mover:${{ steps.version.outputs.version }}${{ matrix.RELEASE_TAG_SUFFIX }}
+      - run: docker images
+#      - name: Push image for tag
+#        if: contains(github.ref, 'tags')
+#        run: docker push ghcr.io/mesh-for-data/mover:${{ steps.version.outputs.version }}${{ matrix.RELEASE_TAG_SUFFIX }}
