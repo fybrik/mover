@@ -56,6 +56,7 @@ case class COS(
       "spark.hadoop.fs.stocator.cos.scheme" -> "cos",
       "spark.hadoop.fs.cos." + serviceName + ".endpoint" -> endpoint,
       "spark.hadoop.fs.cos.threads.max" -> "30",
+      "spark.hadoop.fs.cos.flat.list" -> "true",
       "spark.hadoop.fs.cos.threads.keepalivetime" -> "360",
       "spark.hadoop.fs.cos.connection.maximum" -> "20000",
       "spark.hadoop.fs.cos.client.execution.timeout" -> Int.MaxValue.toString,

@@ -33,10 +33,7 @@ trait SparkTest {
       .set("spark.sql.shuffle.partitions", "2")
       .set("spark.sql.parquet.writeLegacyFormat", "true")
       .set("spark.sql.session.timeZone", tz)
-      .set("spark.hadoop.fs.stocator.scheme.list", "cos")
-      .set("spark.hadoop.fs.cos.impl", "com.ibm.stocator.fs.ObjectStoreFileSystem")
-      .set("spark.hadoop.fs.stocator.cos.impl", "com.ibm.stocator.fs.cos.COSAPIClient")
-      .set("spark.hadoop.fs.stocator.cos.scheme", "cos")
+      .set("spark.sql.streaming.checkpointLocation", "/tmp/datamover")
   }
 
   /**
