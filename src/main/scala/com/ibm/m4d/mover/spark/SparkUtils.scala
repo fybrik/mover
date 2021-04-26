@@ -67,6 +67,8 @@ object SparkUtils {
       .set("spark.sql.parquet.writeLegacyFormat", "true")
       .set("spark.sql.shuffle.partitions", sparkConfig.shufflePartitions.toString)
       .setAll(additionalOptions)
+      .setIf("spark.driver.bindAddress", "localhost", !sys.props.get("IS_TEST").contains("true"))
+      .setIf("spark.ui.enabled", "false", !sys.props.get("IS_TEST").contains("true"))
       .setIf("spark.executor.instances", numInstances.toString, numInstances > 0)
       .setIf("spark.executor.memory", sparkConfig.executorMemory, numInstances > 0)
       .setIf("spark.executor.cores", sparkConfig.executorCores.toString, numInstances > 0)
