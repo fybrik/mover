@@ -48,7 +48,7 @@ case object COSBuilder extends DataStoreBuilder {
       val accessKey = ConfigUtils.opt(cosConfig, "accessKey").orElse(ConfigUtils.opt(cosConfig, "access_key"))
       val secretKey = ConfigUtils.opt(cosConfig, "secretKey").orElse(ConfigUtils.opt(cosConfig, "secret_key"))
       val partitionBy = if (cosConfig.hasPath("partitionBy")) cosConfig.getStringList("partitionBy").asScala else Seq.empty[String]
-      cos.COS(iType, endpoint, bucket, objectKey, fileFormat, region, apiKey, serviceInstance, accessKey, secretKey, partitionBy, serviceName)
+      new COS(iType, endpoint, bucket, objectKey, fileFormat, region, apiKey, serviceInstance, accessKey, secretKey, partitionBy, serviceName)
     }
   }
 

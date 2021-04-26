@@ -33,7 +33,7 @@ class AppTest extends ExtendedFunSuite with Matchers with SparkTest {
 
     val conf = ConfigFactory.parseFile(new File("src/main/resources/cos-to-cos.conf"))
     val cos = COSBuilder.buildTarget(conf).get.asInstanceOf[COS]
-    withSparkSessionCOS(cos) { spark =>
+    withSparkSessionExtra(cos.additionalSparkConfig()) { spark =>
       val df = spark.read.parquet(cosUrl(cos.bucket, cos.objectKey, COSSourceServiceName))
 
       // The original plants.parq file has 5 columns
@@ -48,7 +48,7 @@ class AppTest extends ExtendedFunSuite with Matchers with SparkTest {
 
     val conf = ConfigFactory.parseFile(new File("src/main/resources/kafka-to-cos.conf"))
     val cos = COSBuilder.buildTarget(conf).get.asInstanceOf[COS]
-    withSparkSessionCOS(cos) { spark =>
+    withSparkSessionExtra(cos.additionalSparkConfig()) { spark =>
       val df = spark.read.parquet(cosUrl(cos.bucket, cos.objectKey, COSSourceServiceName))
 
       // The original plants.parq file has 5 columns

@@ -32,11 +32,11 @@ import scala.util.control.NonFatal
   * [[DataStore]] class for a Cloud object store. This is configuring the Stocator library underneath
   * and is compatible to other S3 systems.
   */
-case class COS(
+class COS(
     iType: InputType,
     endpoint: String,
-    bucket: String,
-    objectKey: String,
+    val bucket: String,
+    val objectKey: String,
     fileFormat: FileFormat,
     region: Option[String] = None,
     apiKey: Option[String] = None,

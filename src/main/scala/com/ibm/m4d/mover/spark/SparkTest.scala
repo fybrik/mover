@@ -33,6 +33,7 @@ trait SparkTest {
       .set("spark.sql.shuffle.partitions", "2")
       .set("spark.sql.parquet.writeLegacyFormat", "true")
       .set("spark.sql.session.timeZone", tz)
+      .set("spark.sql.streaming.schemaInference", "true")
       .set("spark.sql.streaming.checkpointLocation", "/tmp/datamover")
   }
 
@@ -59,21 +60,6 @@ trait SparkTest {
     */
   def withSparkSessionExtra(additional: Map[String, String])(f: SparkSession => Unit) {
     val sparkConf = additional.foldLeft(conf())((conf, tup) => conf.set(tup._1, tup._2))
-    val spark = SparkSession.builder().config(sparkConf).getOrCreate()
-    try {
-      f(spark)
-    } finally {
-      spark.stop()
-    }
-  }
-
-  def withSparkSessionCOS(cosConfig: COS, additionalConfig: Map[String, String] = Map.empty[String, String])(f: SparkSession => Unit): Unit = {
-    val sparkConf = conf()
-      .setAll(additionalConfig)
-      .setIf("spark.hadoop.fs.cos." + COSSourceServiceName + ".endpoint", cosConfig.endpoint, true)
-      .setIf("spark.hadoop.fs.cos." + COSSourceServiceName + ".access.key", cosConfig.accessKey.get, true)
-      .setIf("spark.hadoop.fs.cos." + COSSourceServiceName + ".secret.key", cosConfig.secretKey.get, true)
-
     val spark = SparkSession.builder().config(sparkConf).getOrCreate()
     try {
       f(spark)

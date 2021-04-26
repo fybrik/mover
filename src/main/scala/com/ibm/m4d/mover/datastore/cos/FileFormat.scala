@@ -141,6 +141,7 @@ object FileFormat {
         .outputMode(outputMode)
         .format("csv")
         .option("path", path)
+        .option("header", "true")
     }
   }
 

@@ -27,7 +27,7 @@ class COSBuilderSuite extends AnyFunSuite with Matchers {
         |source {
         |  cos {
         |    endpoint = "eps"
-        |    bucket = "bucket"
+        |    bucket = "bucket1"
         |    objectKey = "ok"
         |    dataFormat = "parquet"
         |    accessKey = "ak"
@@ -37,7 +37,7 @@ class COSBuilderSuite extends AnyFunSuite with Matchers {
         |destination {
         |  cos {
         |    endpoint = "ept"
-        |    bucket = "bucket"
+        |    bucket = "bucket2"
         |    objectKey = "ok"
         |    dataFormat = "parquet"
         |    access_key = "ak2"
@@ -49,20 +49,24 @@ class COSBuilderSuite extends AnyFunSuite with Matchers {
     val sourceDataStore = DataStoreBuilder.buildSource(config)
     val targetDataStore = DataStoreBuilder.buildTarget(config)
     sourceDataStore.get shouldBe a[COS]
-    sourceDataStore.get.asInstanceOf[COS].endpoint shouldBe "eps"
-    sourceDataStore.get.asInstanceOf[COS].accessKey shouldBe Some("ak")
-    sourceDataStore.get.asInstanceOf[COS].secretKey shouldBe Some("sk")
+    sourceDataStore.get.asInstanceOf[COS].bucket shouldBe "bucket1"
+    val sourceAdditionalSparkConfig = sourceDataStore.get.additionalSparkConfig()
+    sourceAdditionalSparkConfig.get("spark.hadoop.fs.cos.source.endpoint") shouldBe Some("eps")
+    sourceAdditionalSparkConfig.get("spark.hadoop.fs.cos.source.access.key") shouldBe Some("ak")
+    sourceAdditionalSparkConfig.get("spark.hadoop.fs.cos.source.secret.key") shouldBe Some("sk")
     targetDataStore.get shouldBe a[COS]
-    targetDataStore.get.asInstanceOf[COS].endpoint shouldBe "ept"
-    targetDataStore.get.asInstanceOf[COS].accessKey shouldBe Some("ak2")
-    targetDataStore.get.asInstanceOf[COS].secretKey shouldBe Some("sk2")
+    targetDataStore.get.asInstanceOf[COS].bucket shouldBe "bucket2"
+    val targetAdditionalSparkConfig = targetDataStore.get.additionalSparkConfig()
+    targetAdditionalSparkConfig.get("spark.hadoop.fs.cos.target.endpoint") shouldBe Some("ept")
+    targetAdditionalSparkConfig.get("spark.hadoop.fs.cos.target.access.key") shouldBe Some("ak2")
+    targetAdditionalSparkConfig.get("spark.hadoop.fs.cos.target.secret.key") shouldBe Some("sk2")
 
     val s2 =
       """
         |source {
         |  s3 {
         |    endpoint = "eps"
-        |    bucket = "bucket"
+        |    bucket = "bucket1"
         |    objectKey = "ok"
         |    dataFormat = "parquet"
         |  }
@@ -70,18 +74,18 @@ class COSBuilderSuite extends AnyFunSuite with Matchers {
         |destination {
         |  s3 {
         |    endpoint = "ept"
-        |    bucket = "bucket"
+        |    bucket = "bucket2"
         |    objectKey = "ok"
         |    dataFormat = "parquet"
         |  }
         |}""".stripMargin
 
-    val config2 = ConfigFactory.parseString(s)
-    val sourceDataStore2 = DataStoreBuilder.buildSource(config)
-    val targetDataStore2 = DataStoreBuilder.buildTarget(config)
+    val config2 = ConfigFactory.parseString(s2)
+    val sourceDataStore2 = DataStoreBuilder.buildSource(config2)
+    val targetDataStore2 = DataStoreBuilder.buildTarget(config2)
     sourceDataStore2.get shouldBe a[COS]
-    sourceDataStore2.get.asInstanceOf[COS].endpoint shouldBe "eps"
+    sourceDataStore2.get.asInstanceOf[COS].bucket shouldBe "bucket1"
     targetDataStore2.get shouldBe a[COS]
-    targetDataStore2.get.asInstanceOf[COS].endpoint shouldBe "ept"
+    targetDataStore2.get.asInstanceOf[COS].bucket shouldBe "bucket2"
   }
 }
