@@ -75,6 +75,7 @@ object SparkUtils {
       .set("spark.kubernetes.container.image", sparkConfig.image)
       .set("spark.kubernetes.container.image.pullPolicy", sparkConfig.imagePullPolicy)
       .set("spark.sql.streaming.checkpointLocation", "/tmp/datamover")
+      .set("spark.sql.streaming.schemaInference", "true")
       .setAll(sparkConfig.additionalOptions)
 
     SparkSession.builder

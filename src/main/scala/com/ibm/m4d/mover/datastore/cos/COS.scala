@@ -32,11 +32,11 @@ import scala.util.control.NonFatal
   * [[DataStore]] class for a Cloud object store. This is configuring the Stocator library underneath
   * and is compatible to other S3 systems.
   */
-case class COS(
+class COS(
     iType: InputType,
     endpoint: String,
-    bucket: String,
-    objectKey: String,
+    val bucket: String,
+    val objectKey: String,
     fileFormat: FileFormat,
     region: Option[String] = None,
     apiKey: Option[String] = None,
@@ -56,6 +56,7 @@ case class COS(
       "spark.hadoop.fs.stocator.cos.scheme" -> "cos",
       "spark.hadoop.fs.cos." + serviceName + ".endpoint" -> endpoint,
       "spark.hadoop.fs.cos.threads.max" -> "30",
+      "spark.hadoop.fs.cos.flat.list" -> "true",
       "spark.hadoop.fs.cos.threads.keepalivetime" -> "360",
       "spark.hadoop.fs.cos.connection.maximum" -> "20000",
       "spark.hadoop.fs.cos.client.execution.timeout" -> Int.MaxValue.toString,
