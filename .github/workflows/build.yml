@@ -54,7 +54,6 @@ jobs:
         env:
           SPARK_VERSION: ${{ matrix.SPARK_VERSION }}
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
           flags: ${{ matrix.PROFILE }}
           env_vars: SPARK_VERSION
           fail_ci_if_error: true
