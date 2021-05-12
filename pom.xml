@@ -293,7 +293,7 @@
 		<dependency>
 			<groupId>com.dimafeng</groupId>
 			<artifactId>testcontainers-scala-kafka_${scala.compat.version}</artifactId>
-			<version>0.39.3</version>
+			<version>0.39.4</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
