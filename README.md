@@ -48,7 +48,7 @@ If you want to test with your own image make sure to update either the environme
 The following notes sketch out how to manually build the images.
 The Spark base image can be built locally with the following command:
 
-```docker build -t spark-base:2.4.7 -f src/main/docker/spark/spark2.Dockerfile src/main/docker/spark```
+```docker build -t spark-base:2.4.8 -f src/main/docker/spark/spark2.Dockerfile src/main/docker/spark```
 
 After the base image is finished the mover image can be built locally using:
 ```mvn package jib:dockerBuild -DskipTests -Plocal-to-ghcr```
@@ -79,10 +79,17 @@ docker network connect kind kind-registry
 ```
 
 ### Building image and pushing to _kind_
+Spark 2.4 base
 ```
-docker build -t spark-base:2.4.7 -f src/main/docker/spark/spark2.Dockerfile src/main/docker/spark
-mvn package jib:dockerBuild -DskipTests -Plocal-registry
+docker build -t spark-base:2.4.8 -f src/main/docker/spark/spark2.Dockerfile src/main/docker/spark
+mvn package jib:dockerBuild -DskipTests -Plocal-registry -Pspark2
 docker push localhost:5000/mesh-for-data/mover:latest
+```
+Spark 3.0 base
+```
+docker build -t spark-base:3.0.2 -f src/main/docker/spark/spark3.Dockerfile src/main/docker/spark
+mvn package jib:dockerBuild -DskipTests -Plocal-registry -Pspark3
+docker push localhost:5000/mesh-for-data/mover:latest-spark3
 ```
 
 ### Testing with Kafka
@@ -118,7 +125,7 @@ minikube is running in a VM and has a docker instance. This can be used to build
 Make sure that your docker client is using minikube's docker environment: `eval $(minikube docker-env)`
 
 ```
-docker build -t spark-base:2.4.7 -f src/main/docker/spark/spark2.Dockerfile src/main/docker/spark
+docker build -t spark-base:2.4.8 -f src/main/docker/spark/spark2.Dockerfile src/main/docker/spark
 mvn package jib:dockerBuild -DskipTests -Pdev
 ```
 
@@ -152,7 +159,7 @@ while the internal URL where the images will be reachable is `image-registry.ope
 will be re-tagged automatically.
 
 ```
-docker build -t spark-base:2.4.7 -f src/main/docker/spark/spark2.Dockerfile src/main/docker/spark
+docker build -t spark-base:2.4.8 -f src/main/docker/spark/spark2.Dockerfile src/main/docker/spark
 mvn package jib:dockerBuild -DskipTests -Djib.to.image=<your_registry>/<your_namespace>/mover:latest
 docker push <your_registry>/<your_namespace>/mover:latest
 ```
@@ -185,3 +192,11 @@ Add the anyuid policy to your service account:
 io.fabric8.kubernetes.client.KubernetesClientException: Failure executing: POST
 ```
 then the proper roles to create events are not defined in the namespace you are using. Please run `kubectl apply -f EventCreatorRole.yaml` 
+
+- When receiving a `Exception in thread "main" org.apache.hadoop.util.DiskChecker$DiskErrorException: No space available in any of the local directories` when running locally in kind
+  most probably your docker is running out of space and it's recommended to reset it:
+
+```
+docker system prune
+docker volume prune
+```

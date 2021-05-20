@@ -12,7 +12,7 @@
 #
 
 FROM adoptopenjdk/openjdk8:alpine-jre
-ARG SPARK_VERSION=2.4.7
+ARG SPARK_VERSION=2.4.8
 ARG HADOOP_VERSION=2.7
 
 ENV LANG=en_US.utf8
