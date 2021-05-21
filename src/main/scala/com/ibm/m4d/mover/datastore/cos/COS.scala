@@ -66,7 +66,8 @@ class COS(
       "spark.hadoop.fs.cos.fast.upload" -> "true"
     ) ++
       accessKey.map(ak => "spark.hadoop.fs.cos." + serviceName + ".access.key" -> ak) ++
-      secretKey.map(sk => "spark.hadoop.fs.cos." + serviceName + ".secret.key" -> sk)
+      secretKey.map(sk => "spark.hadoop.fs.cos." + serviceName + ".secret.key" -> sk) ++
+      (if (!sys.props.get("IS_TEST").contains("true")) Some("spark.hadoop.fs.s3a.buffer.dir" -> "/opt/spark/work-dir/s3a") else None)
   }
 
   override def sourceMetadata(): Option[MetaData] = ???
