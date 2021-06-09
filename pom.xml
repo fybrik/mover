@@ -34,6 +34,7 @@
 		<java.version>1.8</java.version>
 		<kubernets.client>4.6.0</kubernets.client>
 		<jacoco.plugin.version>0.7.4.201502262128</jacoco.plugin.version>
+		<testcontainers.version>0.39.5</testcontainers.version>
 
 		<base.image>docker://spark-base:${spark.version}</base.image>
 		<docker.repository>${project.artifactId}</docker.repository>
@@ -286,14 +287,14 @@
 		<dependency>
 			<groupId>com.dimafeng</groupId>
 			<artifactId>testcontainers-scala-scalatest_${scala.compat.version}</artifactId>
-			<version>0.39.4</version>
+			<version>${testcontainers.version}</version>
 			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>com.dimafeng</groupId>
 			<artifactId>testcontainers-scala-kafka_${scala.compat.version}</artifactId>
-			<version>0.39.4</version>
+			<version>${testcontainers.version}</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
