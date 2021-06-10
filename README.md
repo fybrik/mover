@@ -1,6 +1,6 @@
-[![GitHub Actions Build](https://github.com/mesh-for-data/the-mesh-for-data-mover/actions/workflows/build.yml/badge.svg)](https://github.com/mesh-for-data/the-mesh-for-data-mover/actions/workflows/build.yml)
+[![GitHub Actions Build](https://github.com/mesh-for-data/mover/actions/workflows/build.yml/badge.svg)](https://github.com/mesh-for-data/mover/actions/workflows/build.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![codecov](https://codecov.io/gh/mesh-for-data/the-mesh-for-data-mover/branch/master/graph/badge.svg)](https://codecov.io/gh/mesh-for-data/the-mesh-for-data-mover)
+[![codecov](https://codecov.io/gh/mesh-for-data/mover/branch/master/graph/badge.svg)](https://codecov.io/gh/mesh-for-data/mover)
 
 
 # Mover
@@ -8,7 +8,7 @@
 This is a  collection of data movement capabilities intended
 as a building block that can  be integrated into a  variety of different
 control        planes.          They        are         used        in
-[the-mesh-for-data](https://github.com/IBM/the-mesh-for-data), but can
+[mesh-for-data](https://github.com/mesh-for-data/mesh-for-data), but can
 be run as a stand-alone service.
 
 The  mover copies  data  between any two supported data stores, for example S3 and Kafka,  and
@@ -25,20 +25,20 @@ updates of the base image are applied.
 
 The latest image can be found at: `ghcr.io/mesh-for-data/mover:latest`
 
-### Setting up a minimal movement only the-mesh-for-data version
+### Setting up a minimal movement only mesh-for-data version
 
 In order to test the mover image on a K8s cluster there is no need for
-a complete installation of [the-mesh-for-data](https://github.com/IBM/the-mesh-for-data).
+a complete installation of [mesh-for-data](https://github.com/mesh-for-data/mesh-for-data).
 A cut-down version that only supports the movement components can be
-installed using the [movement_controller.yaml](movement_controller.yaml) file.
+installed using the [movement_controller.yaml](testing/movement_controller.yaml) file.
 
 This deployment will install a control component and the CRDs that allow the execution
 of data movements. In order to install the yaml please follow these steps:
 
 1. Make sure the cert-manager operator is installed. Either by installing via OpenShift UI or manually via `kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v0.13.1/cert-manager.yaml`
-2. Create a namespace: `kubectl create ns the-mesh-for-data`
+2. Create a namespace: `kubectl create ns mesh-for-data`
 3. Run the install YAML file: `kubectl apply -f movement_controller.yaml`
-4. When the BatchTransfers are not created in the `the-mesh-for-data` namespace please install the event creator role in that namespace: `kubectl apply -f EventCreatorRole.yaml` (please adapt namespace in file)
+4. When the BatchTransfers are not created in the `mesh-for-data` namespace please install the event creator role in that namespace: `kubectl apply -f EventCreatorRole.yaml` (please adapt namespace in file)
 5. Run some example BatchTransfers (please adapt template): `kubectl apply -f batchtransfer.yaml`
 
 If you want to test with your own image make sure to update either the environment variable `MOVER_IMAGE` in the controller deployment or the `spec.image` in the BatchTransfer definition.
@@ -170,7 +170,7 @@ The BatchTransfer spec.image parameter has to be set to `image-registry.openshif
 
 Alternatively if you want to specify a default image for all BatchTransfers and StreamTransfers please change the `MOVER_IMAGE`
 environment variable in the deployment of the controller.
-```kubectl -n the-mesh-for-data edit deployment m4d-controller-manager```
+```kubectl -n mesh-for-data edit deployment m4d-controller-manager```
 
 ## Running locally in the IDE
 
