@@ -13,6 +13,6 @@ target
 /src/main/resources/db2-to-db2.conf
 /src/main/resources/db2-to-cos.conf
 /src/main/resources/db2-bindata.conf
-batchtransfer.yaml
+testing/batchtransfer.yaml
 batchtransfer-kafka.yaml
 docker_images

@@ -13,9 +13,9 @@
 	</licenses>
 
 	<scm>
-		<connection>scm:git:git://github.com/mesh-for-data/the-mesh-for-data-mover.git</connection>
-		<developerConnection>scm:git@github.com:mesh-for-data/the-mesh-for-data-mover.git</developerConnection>
-		<url>https://github.com/mesh-for-data/the-mesh-for-data-mover</url>
+		<connection>scm:git:git://github.com/mesh-for-data/mover.git</connection>
+		<developerConnection>scm:git@github.com:mesh-for-data/mover.git</developerConnection>
+		<url>https://github.com/mesh-for-data/mover</url>
 		<tag>HEAD</tag>
 	</scm>
 
