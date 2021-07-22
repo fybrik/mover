@@ -18,7 +18,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.io.File
-import java.nio.file.Files
 
 /**
   */
@@ -61,6 +60,47 @@ class KafkaBuilderSuite extends AnyFlatSpec with Matchers {
     properties.isSuccess shouldBe true
     properties.get("kafka.sasl.jaas.config") shouldBe "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"user\" password=\"pw\";"
     targetStore.isSuccess shouldBe true
+  }
+
+  it should "build a Kafka config with dataformat" in {
+    val s =
+      """
+        |source {
+        |  kafka {
+        |    kafkaBrokers = "eps"
+        |    user = "user"
+        |    password = "pw"
+        |    kafkaTopic = "parquet"
+        |    schemaRegistryURL = "http://localhost"
+        |    keySchema = "myschema"
+        |    valueSchema = "myschema"
+        |    createSnapshot = "true"
+        |    securityProtocol = "SASL_SSL"
+        |    saslMechanism = "SCRAM-SHA-512"
+        |    dataFormat = "avro"
+        |  }
+        |}
+        |destination {
+        |  kafka {
+        |    kafkaBrokers = "ept"
+        |    kafkaTopic = "bucket"
+        |    serializationFormat = "json"
+        |    sslTruststore = "SGVsbG8gV29ybGQK"
+        |    sslTruststoreLocation = "truststore.jks"
+        |  }
+        |}""".stripMargin
+
+    FileUtils.forceDeleteOnExit(new File("truststore.jks"))
+    val config = ConfigFactory.parseString(s)
+    val sourceStore = KafkaBuilder.buildSource(config).map(_.asInstanceOf[Kafka])
+    val targetStore = KafkaBuilder.buildTarget(config).map(_.asInstanceOf[Kafka])
+    val properties = sourceStore.map(_.getCommonProps("kafka."))
+    sourceStore.isSuccess shouldBe true
+    sourceStore.get.serializationFormat shouldBe SerializationFormat.Avro
+    properties.isSuccess shouldBe true
+    properties.get("kafka.sasl.jaas.config") shouldBe "org.apache.kafka.common.security.scram.ScramLoginModule required username=\"user\" password=\"pw\";"
+    targetStore.isSuccess shouldBe true
+    targetStore.get.serializationFormat shouldBe SerializationFormat.JSON
   }
 
   behavior of "illegal configurations"

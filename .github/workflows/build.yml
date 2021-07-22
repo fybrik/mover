@@ -25,7 +25,7 @@ jobs:
           PROFILE: spark2
           TAG: latest
           RELEASE_TAG_SUFFIX: ''
-        - SPARK_VERSION: 3.0.2
+        - SPARK_VERSION: 3.0.3
           JAVA_VERSION: 11
           PROFILE: spark3
           TAG: latest-spark3
@@ -50,7 +50,7 @@ jobs:
       - name: Build and test jars
         run: mvn -B package -Plocal-to-ghcr -P${{ matrix.PROFILE }}
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1.5.2
+        uses: codecov/codecov-action@v2.0.1
         env:
           SPARK_VERSION: ${{ matrix.SPARK_VERSION }}
         with:

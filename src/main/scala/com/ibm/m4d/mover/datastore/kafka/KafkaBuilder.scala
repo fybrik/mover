@@ -34,6 +34,8 @@ case object KafkaBuilder extends DataStoreBuilder {
     }
     val dataFormat = if (config.hasPath("serializationFormat")) {
       SerializationFormat.parse(config.getString("serializationFormat"))
+    } else if (config.hasPath("dataFormat")) {
+      SerializationFormat.parse(config.getString("dataFormat"))
     } else if (keyDeserializer.equals("io.confluent.kafka.serializers.json.KafkaJsonSchemaDeserializer")) {
       SerializationFormat.JSON
     } else SerializationFormat.Avro
