@@ -87,7 +87,7 @@ docker push localhost:5000/mesh-for-data/mover:latest
 ```
 Spark 3.0 base
 ```
-docker build -t spark-base:3.0.2 -f src/main/docker/spark/spark3.Dockerfile src/main/docker/spark
+docker build -t spark-base:3.0.3 -f src/main/docker/spark/spark3.Dockerfile src/main/docker/spark
 mvn package jib:dockerBuild -DskipTests -Plocal-registry -Pspark3
 docker push localhost:5000/mesh-for-data/mover:latest-spark3
 ```
