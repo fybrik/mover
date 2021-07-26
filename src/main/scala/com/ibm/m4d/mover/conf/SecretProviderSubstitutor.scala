@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory
 import scala.collection.JavaConverters._
 
 /**
-  * Substitutor for values retrieved from the secret provider component of the mesh for data.
+  * Substitutor for values retrieved from the secret provider component of the fybrik.
   * This substitutor uses the key 'vaultPath'.
   * Either a secret provider URL and Role have to be specified or the vaultPath
   * value has to contain a full valid URL to the secret of a secret provider

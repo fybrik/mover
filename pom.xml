@@ -13,9 +13,9 @@
 	</licenses>
 
 	<scm>
-		<connection>scm:git:git://github.com/mesh-for-data/mover.git</connection>
-		<developerConnection>scm:git@github.com:mesh-for-data/mover.git</developerConnection>
-		<url>https://github.com/mesh-for-data/mover</url>
+		<connection>scm:git:git://github.com/fybrik/mover.git</connection>
+		<developerConnection>scm:git@github.com:fybrik/mover.git</developerConnection>
+		<url>https://github.com/fybrik/mover</url>
 		<tag>HEAD</tag>
 	</scm>
 
@@ -62,7 +62,7 @@
 			<id>local-registry</id>
 			<properties>
 				<base.image>docker://spark-base:${spark.version}</base.image>
-				<docker.repository>localhost:5000/mesh-for-data/${project.artifactId}</docker.repository>
+				<docker.repository>localhost:5000/fybrik/${project.artifactId}</docker.repository>
 				<image.label>latest</image.label>
 			</properties>
 		</profile>
@@ -70,7 +70,7 @@
 			<id>local-to-ibm-cloud</id>
 			<properties>
 				<base.image>docker://spark-base:${spark.version}</base.image>
-				<docker.repository>uk.icr.io/mesh-for-data/${project.artifactId}</docker.repository>
+				<docker.repository>uk.icr.io/fybrik/${project.artifactId}</docker.repository>
 				<image.label>latest</image.label>
 			</properties>
 		</profile>
@@ -78,7 +78,7 @@
 			<id>local-to-ghcr</id>
 			<properties>
 				<base.image>docker://spark-base:${spark.version}</base.image>
-				<docker.repository>ghcr.io/mesh-for-data/${project.artifactId}</docker.repository>
+				<docker.repository>ghcr.io/fybrik/${project.artifactId}</docker.repository>
 				<image.label>latest</image.label>
 			</properties>
 		</profile>

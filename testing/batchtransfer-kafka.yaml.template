@@ -25,7 +25,7 @@ spec:
       dataFormat: "parquet"
   transformation:
   maxFailedRetries: 0
-  image: localhost:5000/mesh-for-data/mover:latest-spark3
+  image: localhost:5000/fybrik/mover:latest-spark3
   imagePullPolicy: "Always"
   readDataType: LogData
   writeDataType: LogData

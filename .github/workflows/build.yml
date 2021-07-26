@@ -80,14 +80,14 @@ jobs:
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login -u "${{ github.actor }}" --password-stdin "${{ env.DOCKER_HOSTNAME }}"
       - name: Docker push
         if: ${{ (github.event_name != 'pull_request') && !contains(github.ref, 'tags') }}
-        run: docker push ghcr.io/mesh-for-data/mover:${{ matrix.TAG }}
+        run: docker push ghcr.io/fybrik/mover:${{ matrix.TAG }}
       - id: version
         name: Infer version
         run: echo ::set-output name=version::${GITHUB_REF#refs/*/}
       - name: Retag image for tag
         if: contains(github.ref, 'tags')
-        run: docker tag ghcr.io/mesh-for-data/mover:${{ matrix.TAG }} ghcr.io/mesh-for-data/mover:${{ steps.version.outputs.version }}${{ matrix.RELEASE_TAG_SUFFIX }}
+        run: docker tag ghcr.io/fybrik/mover:${{ matrix.TAG }} ghcr.io/fybrik/mover:${{ steps.version.outputs.version }}${{ matrix.RELEASE_TAG_SUFFIX }}
       - run: docker images
       - name: Push image for tag
         if: contains(github.ref, 'tags')
-        run: docker push ghcr.io/mesh-for-data/mover:${{ steps.version.outputs.version }}${{ matrix.RELEASE_TAG_SUFFIX }}
+        run: docker push ghcr.io/fybrik/mover:${{ steps.version.outputs.version }}${{ matrix.RELEASE_TAG_SUFFIX }}
