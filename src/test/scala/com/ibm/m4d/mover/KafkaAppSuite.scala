@@ -18,9 +18,12 @@ import com.ibm.m4d.mover.spark.{SparkTest, _}
 import com.ibm.m4d.mover.transformation.{MyClass, MyClassKV, MyClassKey}
 import com.typesafe.config.{ConfigFactory, ConfigRenderOptions}
 import org.apache.commons.io.FileUtils
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.types.IntegerType
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
 import java.io.File
 import java.nio.file.Files
 import scala.collection.JavaConverters._
@@ -218,7 +221,7 @@ class KafkaAppSuite extends AnyFlatSpec with ForAllTestContainer with SparkTest 
   }
 
   behavior of "streams"
-  it should "append data to a file" in {
+  it should "append avro data to a file" in {
     FileUtils.deleteDirectory(new File("test.parq"))
     System.setProperty("IS_TEST", "true")
     val format = "avro"
@@ -260,6 +263,56 @@ class KafkaAppSuite extends AnyFlatSpec with ForAllTestContainer with SparkTest 
       val rdf = spark.read.parquet("test.parq")
       rdf.schema.names should contain theSameElementsAs Seq("key", "value", "topic", "partition", "offset", "timestamp", "timestampType")
       val rData = rdf.select("value.*").as[TestClass].collect()
+      rData should contain theSameElementsAs data
+    }
+
+    FileUtils.deleteDirectory(new File("test.parq"))
+    kafka.deleteTarget()
+  }
+
+  it should "append json data to a file" in {
+    FileUtils.deleteDirectory(new File("test.parq"))
+    System.setProperty("IS_TEST", "true")
+    val format = "json"
+    val baseConf = ConfigFactory.parseFile(new File("src/main/resources/kafka-to-local.conf"))
+    val newConf = ConfigFactory.parseMap(Map(
+      "source.kafka.kafkaBrokers" -> kafkaContainer.bootstrapServers,
+      "source.kafka.kafkaTopic" -> ("stream-json"),
+      "source.kafka.dataFormat" -> format,
+      "flowType" -> "stream",
+      "readDataType" -> "logdata",
+      "writeDataType" -> "logdata",
+      "writeOperation" -> "append",
+      "triggerInterval" -> "once",
+    ).asJava).withFallback(baseConf)
+
+    val tempConf = Files.createTempFile("stream-json-" + format, ".json")
+    Files.write(tempConf, newConf.root().render(ConfigRenderOptions.concise()).getBytes())
+
+    val kafka = KafkaBuilder.buildSource(newConf).get.asInstanceOf[Kafka]
+
+    withSparkSession { spark =>
+      import spark.implicits._
+
+      val df = spark.createDataset(data).toDF()
+        .setNullableStateOfColumn("i", nullable = false)
+        .setNullableStateOfColumn("d", nullable = false)
+
+      val kafkaDF = KafkaUtils.toKafkaWriteableDF(df, Seq(df("i")))
+
+      KafkaUtils.writeToKafka(kafkaDF, kafka)
+    }
+
+    Transfer.main(Array(tempConf.toAbsolutePath.toString))
+
+    withSparkSession { spark =>
+      import spark.implicits._
+      val rdf = spark.read.parquet("test.parq")
+      rdf.schema.names should contain theSameElementsAs Seq("key", "value", "topic", "partition", "offset", "timestamp", "timestampType")
+      val rData = rdf.select("value.*")
+        .select(col("i").cast(IntegerType), col("s"), col("s2"), col("d"))
+        .as[TestClass]
+        .collect()
       rData should contain theSameElementsAs data
     }
 

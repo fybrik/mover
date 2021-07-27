@@ -218,7 +218,7 @@ class KafkaUtilsSuite extends AnyFunSuite with SparkTest with Matchers {
       //simulate write
       val rows = kafkaSerializedDF.collect()
 
-      val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig)
+      val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig, isBatch = true)
 
       val deserializedRows = kafkaDeserializedDF.collect()
 
@@ -272,7 +272,7 @@ class KafkaUtilsSuite extends AnyFunSuite with SparkTest with Matchers {
       //simulate write
       val rows = kafkaSerializedDF.collect()
 
-      val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig)
+      val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig, isBatch = true)
 
       kafkaDeserializedDF.schema.names should contain theSameElementsAs Seq("value")
 
@@ -325,7 +325,7 @@ class KafkaUtilsSuite extends AnyFunSuite with SparkTest with Matchers {
       //simulate write
       val rows = kafkaSerializedDF.collect()
 
-      val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig)
+      val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig, isBatch = true)
 
       val deserializedRows = kafkaDeserializedDF.collect()
 
@@ -371,7 +371,7 @@ class KafkaUtilsSuite extends AnyFunSuite with SparkTest with Matchers {
       //simulate write
       val rows = kafkaSerializedDF.collect()
 
-      val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig)
+      val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig, isBatch = true)
 
       val deserializedRows = kafkaDeserializedDF.collect()
 
@@ -420,7 +420,7 @@ class KafkaUtilsSuite extends AnyFunSuite with SparkTest with Matchers {
       //simulate write
       val rows = kafkaSerializedDF.collect()
 
-      val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig)
+      val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig, isBatch = true)
 
       val deserializedRows = kafkaDeserializedDF.collect()
 
@@ -466,7 +466,7 @@ class KafkaUtilsSuite extends AnyFunSuite with SparkTest with Matchers {
       //simulate write
       val rows = kafkaSerializedDF.collect()
 
-      val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig)
+      val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig, isBatch = true)
 
       val deserializedRows = kafkaDeserializedDF.collect()
 
@@ -480,7 +480,7 @@ class KafkaUtilsSuite extends AnyFunSuite with SparkTest with Matchers {
     }
   }
 
-  test("test serde with json and no schema (automatic inference)") {
+  test("test serde with json and no schema (automatic inference) (for batch)") {
 
     withSparkSession { spark =>
       import spark.implicits._
@@ -512,7 +512,7 @@ class KafkaUtilsSuite extends AnyFunSuite with SparkTest with Matchers {
       //simulate write
       val rows = kafkaSerializedDF.collect()
 
-      val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig)
+      val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig, isBatch = true)
 
       val deserializedRows = kafkaDeserializedDF.collect()
 
@@ -520,6 +520,56 @@ class KafkaUtilsSuite extends AnyFunSuite with SparkTest with Matchers {
 
       // Cast to integer first as JSON automatic inference infers integer numbers as long
       val deserializedValues = KafkaUtils.mapToValue(kafkaDeserializedDF).select(col("i").cast(IntegerType), col("s"), col("d"))
+        .as[MyClass]
+        .collect()
+
+      deserializedValues should contain theSameElementsAs records
+    }
+  }
+
+  test("test serde with json and no schema (automatic inference) (for stream)") {
+    withSparkSession { spark =>
+      import spark.implicits._
+      val records = Seq(
+        MyClass(1, "a", 1.0),
+        MyClass(2, "b", 2.0),
+        MyClass(3, "c", 3.0)
+      )
+
+      val refDF = spark.createDataFrame(records)
+
+      val kafkaConfig = new Kafka(
+        Source,
+        "localhost:9091",
+        "",
+        "",
+        "topic",
+        None,
+        None,
+        None,
+        false,
+        false,
+        JSON
+      )
+
+      val kafkaDF = KafkaUtils.toKafkaWriteableDF(refDF, Seq(refDF("i")))
+      val kafkaSerializedDF = KafkaUtils.catalystToKafka(kafkaDF, kafkaConfig)
+
+      //simulate write
+      val rows = kafkaSerializedDF.collect()
+
+      val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig, isBatch = false)
+
+      // For stream the json inference is called for each batch separetely
+
+      val inferredDF = KafkaUtils.inferJsonSchemaAndConvert(kafkaDeserializedDF)
+
+      val deserializedRows = inferredDF.collect()
+
+      deserializedRows should have size 3
+
+      // Cast to integer first as JSON automatic inference infers integer numbers as long
+      val deserializedValues = KafkaUtils.mapToValue(inferredDF).select(col("i").cast(IntegerType), col("s"), col("d"))
         .as[MyClass]
         .collect()
 

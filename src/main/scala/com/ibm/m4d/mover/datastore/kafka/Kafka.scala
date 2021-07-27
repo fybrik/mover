@@ -117,4 +117,8 @@ class Kafka(
       logger.warn(s"Kafka topic ${kafkaTopic} could not be deleted!")
     }
   }
+
+  def inferSchema(): Boolean = {
+    serializationFormat.equals(SerializationFormat.JSON) && (keySchema.isEmpty || valueSchema.isEmpty)
+  }
 }

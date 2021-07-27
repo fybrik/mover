@@ -13,6 +13,7 @@
 package com.ibm.m4d.mover
 
 import com.ibm.m4d.mover.conf.CredentialSubstitutor
+import com.ibm.m4d.mover.datastore.kafka.{Kafka, KafkaUtils}
 import com.ibm.m4d.mover.datastore.{DataStore, DataStoreBuilder}
 import com.ibm.m4d.mover.spark.{SnapshotAggregator, SparkConfig, SparkOutputCounter, SparkUtils}
 import com.ibm.m4d.mover.transformation.Transformation
@@ -20,7 +21,7 @@ import com.typesafe.config.ConfigFactory
 import io.fabric8.kubernetes.client.{DefaultKubernetesClient, KubernetesClientException}
 import org.apache.commons.io.FileUtils
 import org.apache.commons.lang.RandomStringUtils
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.slf4j.LoggerFactory
 
 import java.io.File
@@ -122,27 +123,27 @@ object Transfer {
       }
     }
 
-    // Apply transformations to the data frame. Depending if it's log data or change data different
-    // transform methods have to be called. Transform methods usually return a newly transformed
-    // data frame.
-    val transformedDF = try {
-      transformations
-        .foldLeft(df) { case (df, transformation) =>
-          transferConfig.sourceDataType match {
-            case DataType.LogData                          => transformation.transformLogData(df)
-            case DataType.ChangeData if performSnapshot    => transformation.transformLogData(df) // If a snapshot has already been performed treat data as log data
-            case DataType.ChangeData if !performSnapshot   => transformation.transformChangeData(df)
-          }
-        }
-    } catch {
-      case NonFatal(e) =>
-        val msg = "Configuring the transformations failed with message: " + e.getMessage
-        writeTerminationMessage(msg)
-        throw e
-    }
-
     transferConfig.dataFlowType match {
       case DataFlowType.Batch =>
+
+        // Apply transformations to the data frame. Depending if it's log data or change data different
+        // transform methods have to be called. Transform methods usually return a newly transformed
+        // data frame.
+        val transformedDF = try {
+          transformations
+            .foldLeft(df) { case (df, transformation) =>
+              transferConfig.sourceDataType match {
+                case DataType.LogData                          => transformation.transformLogData(df)
+                case DataType.ChangeData if performSnapshot    => transformation.transformLogData(df) // If a snapshot has already been performed treat data as log data
+                case DataType.ChangeData if !performSnapshot   => transformation.transformChangeData(df)
+              }
+            }
+        } catch {
+          case NonFatal(e) =>
+            val msg = "Configuring the transformations failed with message: " + e.getMessage
+            writeTerminationMessage(msg)
+            throw e
+        }
 
         val counter = SparkOutputCounter.createAndRegister(spark)
         target.write(transformedDF, transferConfig.targetDataType, transferConfig.writeOperation)
@@ -163,12 +164,45 @@ object Transfer {
         writeTerminationMessage(msg)
 
       case DataFlowType.Stream =>
-        val stream = target.writeStream(transformedDF, transferConfig.targetDataType, transferConfig.writeOperation)
-        val s = stream
+
+        def processMicroBatch(mDF: DataFrame, id: Long): Unit = {
+
+          val newMicroBatch = if (source.isInstanceOf[Kafka] && source.asInstanceOf[Kafka].inferSchema()) {
+            mDF.persist()
+            // Hack for json Kafka that still needs schema detection
+            KafkaUtils.inferJsonSchemaAndConvert(mDF)
+          } else {
+            mDF
+          }
+
+          // Apply transformations to the data frame. Depending if it's log data or change data different
+          // transform methods have to be called. Transform methods usually return a newly transformed
+          // data frame.
+          val transformedDF = try {
+            transformations
+              .foldLeft(newMicroBatch) { case (df, transformation) =>
+                transferConfig.sourceDataType match {
+                  case DataType.LogData                          => transformation.transformLogData(df)
+                  case DataType.ChangeData if !performSnapshot   => transformation.transformChangeData(df)
+                }
+              }
+          } catch {
+            case NonFatal(e) =>
+              val msg = "Configuring the transformations failed with message: " + e.getMessage
+              writeTerminationMessage(msg)
+              throw e
+          }
+
+          target.write(transformedDF, transferConfig.targetDataType, transferConfig.writeOperation)
+
+          df.unpersist()
+        }
+
+        val stream = df.writeStream.foreachBatch(processMicroBatch _)
           .trigger(transferConfig.trigger)
           .start()
 
-        s.awaitTermination()
+        stream.awaitTermination()
     }
   }
 
