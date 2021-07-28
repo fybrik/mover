@@ -1,3 +1,3 @@
 #!/bin/bash
 
-java -cp /opt/spark/jars/*:/app/classpath/*:/app/libs/* com.ibm.m4d.mover.Finalizer "$@"
+java -cp /opt/spark/jars/*:/app/classpath/*:/app/libs/* io.fybrik.mover.Finalizer "$@"

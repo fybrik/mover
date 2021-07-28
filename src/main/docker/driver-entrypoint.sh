@@ -21,7 +21,7 @@
           --driver-memory $SPARK_DRIVER_MEMORY \
           --driver-class-path "/app/classpath/$MAIN_JAR:/app/libs/*" \
           --driver-java-options "-Dlog4j.configuration=log4j.properties -Divy.home=/opt/spark/work-dir" \
-          --class com.ibm.m4d.mover.Transfer \
+          --class io.fybrik.mover.Transfer \
           --conf spark.kubernetes.allocation.batch.delay=1s \
           --conf spark.executor.extraClassPath=/app/libs/* \
           --conf spark.kubernetes.authenticate.caCertFile=/run/secrets/kubernetes.io/serviceaccount/ca.crt \
