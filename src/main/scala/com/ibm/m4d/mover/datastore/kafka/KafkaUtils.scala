@@ -17,7 +17,7 @@ import org.apache.commons.lang.RandomStringUtils
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.common.errors.TopicExistsException
 import org.apache.spark.sql.avro.SchemaConverters.toAvroType
-import org.apache.spark.sql.functions.{col, to_json}
+import org.apache.spark.sql.functions.{col, from_json, schema_of_json, to_json}
 import org.apache.spark.sql.streaming.DataStreamWriter
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
@@ -99,7 +99,7 @@ object KafkaUtils {
 
     // TODO The df should be augmented with the meta-data from the registry, i.e.
     // the avro schema should be attached to each column.
-    kafkaBytesToCatalyst(df, kafkaConfig)
+    kafkaBytesToCatalyst(df, kafkaConfig, isBatch = false)
   }
 
   /**
@@ -166,11 +166,11 @@ object KafkaUtils {
       // TODO The df should be augmented with the meta-data from the registry, i.e.
       // the avro schema should be attached to each column.
 
-      kafkaBytesToCatalyst(df, kafkaConfig)
+      kafkaBytesToCatalyst(df, kafkaConfig, isBatch = true)
     }
   }
 
-  private[kafka] def kafkaBytesToCatalyst(df: DataFrame, kafkaConfig: Kafka): DataFrame = {
+  private[kafka] def kafkaBytesToCatalyst(df: DataFrame, kafkaConfig: Kafka, isBatch: Boolean): DataFrame = {
     import org.apache.spark.sql.functions._
     val sparkDF = kafkaConfig.serializationFormat match {
       case SerializationFormat.Avro =>
@@ -210,11 +210,13 @@ object KafkaUtils {
               .withColumn("value", from_json(df("value").cast(StringType), valueSchema, Map.empty[String, String]).as("value"))
 
           case (None, None) => // Infer schema from first row
-            val firstRow = df.select(df("key").cast(StringType), df("value").cast(StringType)).head()
-            val keySchema = df.select(schema_of_json(firstRow.getAs[String]("key"))).head().getAs[String](0)
-            val valueSchema = df.select(schema_of_json(firstRow.getAs[String]("value"))).head().getAs[String](0)
-            df.withColumn("key", from_json(df("key").cast(StringType), keySchema, Map.empty[String, String]).as("value"))
-              .withColumn("value", from_json(df("value").cast(StringType), valueSchema, Map.empty[String, String]).as("value"))
+            if (isBatch) {
+              inferJsonSchemaAndConvert(df)
+            } else {
+              // Inference in stream is done in a different part => Return df as is casted to strings
+              df.withColumn("key", df("key").cast(StringType))
+                .withColumn("value", df("value").cast(StringType))
+            }
 
           case (_, _) => throw new IllegalArgumentException("Case not supported!")
         }
@@ -222,6 +224,22 @@ object KafkaUtils {
     }
 
     sparkDF
+  }
+
+  /**
+    * This method does a very rudimentary inference of a JSON schema from a dataframe.
+    * It only considers the schema of the first row and assumes the rest of the rows is compatible.
+    * TODO Concider improving the schema inference to allow different schemas within a micro batch
+    *
+    * @param df Dataframe to be inferred (needs key or value columns)
+    * @return
+    */
+  def inferJsonSchemaAndConvert(df: DataFrame): DataFrame = {
+    val firstRow = df.select(df("key").cast(StringType), df("value").cast(StringType)).head()
+    val keySchema = df.select(schema_of_json(firstRow.getAs[String]("key"))).head().getAs[String](0)
+    val valueSchema = df.select(schema_of_json(firstRow.getAs[String]("value"))).head().getAs[String](0)
+    df.withColumn("key", from_json(df("key").cast(StringType), keySchema, Map.empty[String, String]).as("value"))
+      .withColumn("value", from_json(df("value").cast(StringType), valueSchema, Map.empty[String, String]).as("value"))
   }
 
   def toKafkaWriteableDF(df: DataFrame, keyColumns: Seq[org.apache.spark.sql.Column]): DataFrame = {
