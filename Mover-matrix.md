@@ -42,7 +42,7 @@ The meaning of the stream data flow is dependent on the the source data type and
 | **Write operation (into log data)** | **Source data type: Log data (KStream)** | **Source data type: Change data (KTable)** |
 |---|---|---| 
 | Overwrite(log data) | doesn't make sense as stream => use batch | doesn't make sense as stream => use batch |
-| Append(log data) | Read log data and write log data in an append mode to a target (examples: write logs from Kafka to COS as archive, or read log files from COS) | write only value part as output. This is to be used when e.g. writing data from Kafka to COS without having the key/value structure |
+| Append(log data) | Read log data and write log data in an append mode to a target (examples: write logs from Kafka to COS as archive, or read log files from COS) this writes the full Kafka data (including key, value, timestamp, etc...) | write only value part as output. This is to be used when e.g. writing data from Kafka to COS without having the key/value structure |
 | Update(log data) | doesn't make sense as there is no key | "Confluent" use case: read verbatim (key / value) and interpret during write: insert, update and delete records as needed in the target. Requires that target supports these operations. | 
 
 | **Write operation (into change data)** | **Source data type: Log data (KStream)** | **Source data type: Change data (KTable)** |
@@ -50,3 +50,30 @@ The meaning of the stream data flow is dependent on the the source data type and
 | Overwrite(change data) | doesn't make sense as stream => use batch | doesn't make sense as stream => use batch |
 | Append(change data) | doesn't make sense. Can't go from log data to change data | Read verbatim (key / value) and write verbatim (key /value) Use case: Read CDC stream, apply transformations (anonymizations, redactions) and write CDC stream out to target. If no transformations are applied this is like MirrorMaker |
 | Update(change data) | Cannot be supported without primary key. Not planned for now. | doesn't make sense | 
+
+
+#### Example configurations
+
+##### Dump json data from Kafka to COS
+
+* data flow type: Stream
+* source: Kafka
+* target: COS
+* write operation: Append
+* source data type: Change data
+* target data type: Log data
+* Data in Kafka: Keys are null and values contain JSON records
+
+=> Result: Will write JSON record of value into COS. Thus no Kafka internal info or keys are written to COS
+
+#### Do a batch snapshot of a KTable to COS
+
+* data flow type: Batch
+* source: Kafka
+* target: COS
+* write operation: Overwrite
+* source data type: Change data
+* target data type: Log data
+* Data in Kafka: Keys are keys of change data and values contain the full records (in avro)
+
+=> Result: Will write only the latest values to COS. (Grouping by key first to sort out earlier updates)
