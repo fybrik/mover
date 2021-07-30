@@ -147,6 +147,7 @@ class KafkaAppSuite extends AnyFlatSpec with ForAllTestContainer with SparkTest 
         MyClass(2, "b2", 2.1),
         MyClass(4, "d1", 4.0),
       )
+      rdf.schema.names should contain theSameElementsAs Seq("i", "s", "d")
       val rData = rdf.as[MyClass].collect()
       rData should contain theSameElementsAs expected
     }
@@ -270,7 +271,7 @@ class KafkaAppSuite extends AnyFlatSpec with ForAllTestContainer with SparkTest 
     kafka.deleteTarget()
   }
 
-  it should "append json data to a file" in {
+  it should "append json data to a file (changedata)" in {
     FileUtils.deleteDirectory(new File("test.parq"))
     System.setProperty("IS_TEST", "true")
     val format = "json"
@@ -280,7 +281,7 @@ class KafkaAppSuite extends AnyFlatSpec with ForAllTestContainer with SparkTest 
       "source.kafka.kafkaTopic" -> ("stream-json"),
       "source.kafka.dataFormat" -> format,
       "flowType" -> "stream",
-      "readDataType" -> "logdata",
+      "readDataType" -> "changedata",
       "writeDataType" -> "logdata",
       "writeOperation" -> "append",
       "triggerInterval" -> "once",
@@ -308,8 +309,8 @@ class KafkaAppSuite extends AnyFlatSpec with ForAllTestContainer with SparkTest 
     withSparkSession { spark =>
       import spark.implicits._
       val rdf = spark.read.parquet("test.parq")
-      rdf.schema.names should contain theSameElementsAs Seq("key", "value", "topic", "partition", "offset", "timestamp", "timestampType")
-      val rData = rdf.select("value.*")
+      rdf.schema.names should contain theSameElementsAs Seq("i", "s", "s2", "d")
+      val rData = rdf
         .select(col("i").cast(IntegerType), col("s"), col("s2"), col("d"))
         .as[TestClass]
         .collect()

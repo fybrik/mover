@@ -106,21 +106,7 @@ object Transfer {
       logger.info("Performing a snapshot of the source...")
       SnapshotAggregator.createSnapshot(sourceDF)
     } else {
-      if (transferConfig.dataFlowType == DataFlowType.Stream &&
-        transferConfig.sourceDataType == DataType.ChangeData) {
-        if (transferConfig.targetDataType == DataType.LogData) {
-          logger.warn("WARNING: Source data type is change data and target data type is log data" +
-            " in a stream scenario. A proper snapshot cannot be performed in this scenario " +
-            "so the data is just mapped to the value. This may lead to duplicate values and loss of nullable information!")
-          sourceDF.select("value.*")
-        } else {
-          // If source and target data type is ChangeData then only
-          // keep key and value and continue... TODO maybe Kafka needs to keep partition information?
-          sourceDF.select("key", "value")
-        }
-      } else {
-        sourceDF
-      }
+      sourceDF
     }
 
     transferConfig.dataFlowType match {
@@ -193,9 +179,24 @@ object Transfer {
               throw e
           }
 
-          target.write(transformedDF, transferConfig.targetDataType, transferConfig.writeOperation)
+          val writeDF = if (transferConfig.sourceDataType == DataType.ChangeData) {
+            if (transferConfig.targetDataType == DataType.LogData) {
+              logger.warn("WARNING: Source data type is change data and target data type is log data" +
+                " in a stream scenario. A proper snapshot cannot be performed in this scenario " +
+                "so the data is just mapped to the value. This may lead to duplicate values and loss of nullable information!")
+              transformedDF.select("value.*")
+            } else {
+              // If source and target data type is ChangeData then only
+              // keep key and value and continue... TODO maybe Kafka needs to keep partition information?
+              transformedDF.select("key", "value")
+            }
+          } else {
+            transformedDF
+          }
 
-          df.unpersist()
+          target.write(writeDF, transferConfig.targetDataType, transferConfig.writeOperation)
+
+          mDF.unpersist()
         }
 
         val stream = df.writeStream.foreachBatch(processMicroBatch _)
