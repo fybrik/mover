@@ -152,11 +152,11 @@ The BatchTransfer spec.image parameter has to be set to `image-registry.openshif
 
 Alternatively if you want to specify a default image for all BatchTransfers and StreamTransfers please change the `MOVER_IMAGE`
 environment variable in the deployment of the controller.
-```kubectl -n fybrik edit deployment m4d-controller-manager```
+```kubectl -n fybrik edit deployment fybrik-controller-manager```
 
 ## Running locally in the IDE
 
-The app can be run locally via the [AppTest](src/test/scala/com/ibm/m4d/mover/AppTest.scala) suite as well. Extend it with another test
+The app can be run locally via the [AppTest](src/test/scala/io/fybrik/mover/AppTest.scala) suite as well. Extend it with another test
  that is using a configuration of your choosing. A correct configuration file has to be put in a path. An example template configuration
 can be found [here](src/main/resources/test.conf.template)  
 
