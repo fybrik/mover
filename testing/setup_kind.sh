@@ -11,5 +11,4 @@ docker network connect kind kind-registry
 
 kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v0.13.1/cert-manager.yaml
 kubectl wait --for=condition=available -n cert-manager deployment/cert-manager-webhook --timeout=180s
-kubectl create ns mesh-for-data
-kubectl apply -f movement_controller.yaml
+echo "Please install the fybrik following the documentation at https://github.com/fybrik/fybrik"
