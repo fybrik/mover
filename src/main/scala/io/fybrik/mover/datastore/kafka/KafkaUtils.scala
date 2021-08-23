@@ -19,7 +19,7 @@ import org.apache.kafka.common.errors.TopicExistsException
 import org.apache.spark.sql.avro.SchemaConverters.toAvroType
 import org.apache.spark.sql.functions.{col, from_json, schema_of_json, to_json}
 import org.apache.spark.sql.streaming.DataStreamWriter
-import org.apache.spark.sql.types.{StringType, StructField, StructType}
+import org.apache.spark.sql.types.{NullType, StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.slf4j.LoggerFactory
 import za.co.absa.abris.avro.functions.from_avro
@@ -213,9 +213,8 @@ object KafkaUtils {
             if (isBatch) {
               inferJsonSchemaAndConvert(df)
             } else {
-              // Inference in stream is done in a different part => Return df as is casted to strings
-              df.withColumn("key", df("key").cast(StringType))
-                .withColumn("value", df("value").cast(StringType))
+              // Inference in stream is done in a different part
+              df
             }
 
           case (_, _) => throw new IllegalArgumentException("Case not supported!")
@@ -236,10 +235,16 @@ object KafkaUtils {
     */
   def inferJsonSchemaAndConvert(df: DataFrame): DataFrame = {
     val firstRow = df.select(df("key").cast(StringType), df("value").cast(StringType)).head()
-    val keySchema = df.select(schema_of_json(firstRow.getAs[String]("key"))).head().getAs[String](0)
-    val valueSchema = df.select(schema_of_json(firstRow.getAs[String]("value"))).head().getAs[String](0)
-    df.withColumn("key", from_json(df("key").cast(StringType), keySchema, Map.empty[String, String]).as("value"))
-      .withColumn("value", from_json(df("value").cast(StringType), valueSchema, Map.empty[String, String]).as("value"))
+    val firstKey = firstRow.getAs[String]("key")
+    if (df.schema.field("key").dataType.equals(NullType) || firstKey == null) {
+      val valueSchema = df.select(schema_of_json(firstRow.getAs[String]("value"))).head().getAs[String](0)
+      df.withColumn("value", from_json(df("value").cast(StringType), valueSchema, Map.empty[String, String]).as("value"))
+    } else {
+      val keySchema = df.select(schema_of_json(firstKey)).head().getAs[String](0)
+      val valueSchema = df.select(schema_of_json(firstRow.getAs[String]("value"))).head().getAs[String](0)
+      df.withColumn("key", from_json(df("key").cast(StringType), keySchema, Map.empty[String, String]).as("value"))
+        .withColumn("value", from_json(df("value").cast(StringType), valueSchema, Map.empty[String, String]).as("value"))
+    }
   }
 
   def toKafkaWriteableDF(df: DataFrame, keyColumns: Seq[org.apache.spark.sql.Column]): DataFrame = {
