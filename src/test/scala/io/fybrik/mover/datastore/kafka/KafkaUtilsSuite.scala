@@ -577,6 +577,57 @@ class KafkaUtilsSuite extends AnyFunSuite with SparkTest with Matchers {
     }
   }
 
+  test("test serde with json and no schema and no key (automatic inference) (for stream)") {
+    withSparkSession { spark =>
+      import spark.implicits._
+      val records = Seq(
+        MyClass(1, "a", 1.0),
+        MyClass(2, "b", 2.0),
+        MyClass(3, "c", 3.0)
+      )
+
+      val refDF = spark.createDataFrame(records)
+
+      val kafkaConfig = new Kafka(
+        Source,
+        "localhost:9091",
+        "",
+        "",
+        "topic",
+        None,
+        None,
+        None,
+        false,
+        false,
+        JSON
+      )
+
+      val kafkaDF = KafkaUtils.toKafkaWriteableDF(refDF, Seq.empty[Column])
+      val kafkaSerializedDF = KafkaUtils.catalystToKafka(kafkaDF, kafkaConfig)
+        .withColumn("key", lit(null)) // Manually set a null key column
+
+      //simulate write
+      val rows = kafkaSerializedDF.collect()
+
+      val kafkaDeserializedDF = KafkaUtils.kafkaBytesToCatalyst(kafkaSerializedDF, kafkaConfig, isBatch = false)
+
+      // For stream the json inference is called for each batch separetely
+
+      val inferredDF = KafkaUtils.inferJsonSchemaAndConvert(kafkaDeserializedDF)
+
+      val deserializedRows = inferredDF.collect()
+
+      deserializedRows should have size 3
+
+      // Cast to integer first as JSON automatic inference infers integer numbers as long
+      val deserializedValues = KafkaUtils.mapToValue(inferredDF).select(col("i").cast(IntegerType), col("s"), col("d"))
+        .as[MyClass]
+        .collect()
+
+      deserializedValues should contain theSameElementsAs records
+    }
+  }
+
   test("extracting the schema id success") {
     KafkaUtils.extractConfluentSchemaID(Array(0, 0, 0, 0, 1)) shouldBe 1
   }
