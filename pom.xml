@@ -34,7 +34,7 @@
 		<java.version>1.8</java.version>
 		<kubernets.client>4.6.0</kubernets.client>
 		<jacoco.plugin.version>0.7.4.201502262128</jacoco.plugin.version>
-		<testcontainers.version>0.39.6</testcontainers.version>
+		<testcontainers.version>0.39.8</testcontainers.version>
 
 		<base.image>docker://spark-base:${spark.version}</base.image>
 		<docker.repository>${project.artifactId}</docker.repository>
