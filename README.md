@@ -30,7 +30,7 @@ The latest image can be found at: `ghcr.io/fybrik/mover:latest`
 The following notes sketch out how to manually build the images.
 The Spark base image can be built locally with the following command:
 
-```docker build -t spark-base:2.4.8 -f src/main/docker/spark/spark2.Dockerfile src/main/docker/spark```
+```docker build -t spark-base:3.0.3 -f src/main/docker/spark/spark3.Dockerfile src/main/docker/spark```
 
 After the base image is finished the mover image can be built locally using:
 ```mvn package jib:dockerBuild -DskipTests -Plocal-to-ghcr```
@@ -107,7 +107,7 @@ minikube is running in a VM and has a docker instance. This can be used to build
 Make sure that your docker client is using minikube's docker environment: `eval $(minikube docker-env)`
 
 ```
-docker build -t spark-base:2.4.8 -f src/main/docker/spark/spark2.Dockerfile src/main/docker/spark
+docker build -t spark-base:3.0.3 -f src/main/docker/spark/spark3.Dockerfile src/main/docker/spark
 mvn package jib:dockerBuild -DskipTests -Pdev
 ```
 
@@ -141,7 +141,7 @@ while the internal URL where the images will be reachable is `image-registry.ope
 will be re-tagged automatically.
 
 ```
-docker build -t spark-base:2.4.8 -f src/main/docker/spark/spark2.Dockerfile src/main/docker/spark
+docker build -t spark-base:3.0.3 -f src/main/docker/spark/spark3.Dockerfile src/main/docker/spark
 mvn package jib:dockerBuild -DskipTests -Djib.to.image=<your_registry>/<your_namespace>/mover:latest
 docker push <your_registry>/<your_namespace>/mover:latest
 ```
