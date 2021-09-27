@@ -61,12 +61,6 @@ docker network connect kind kind-registry
 ```
 
 ### Building image and pushing to _kind_
-Spark 2.4 base
-```
-docker build -t spark-base:2.4.8 -f src/main/docker/spark/spark2.Dockerfile src/main/docker/spark
-mvn package jib:dockerBuild -DskipTests -Plocal-registry -Pspark2
-docker push localhost:5000/fybrik/mover:latest
-```
 Spark 3.0 base
 ```
 docker build -t spark-base:3.0.3 -f src/main/docker/spark/spark3.Dockerfile src/main/docker/spark
