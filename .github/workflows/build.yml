@@ -20,7 +20,7 @@ jobs:
     strategy:
       matrix:
         include:
-        - SPARK_VERSION: 2.4.8
+        - SPARK_VERSION: 2.4.8 # Deprecated
           JAVA_VERSION: 8
           PROFILE: spark2
           TAG: latest-spark2
