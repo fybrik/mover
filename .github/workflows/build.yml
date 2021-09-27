@@ -23,13 +23,13 @@ jobs:
         - SPARK_VERSION: 2.4.8
           JAVA_VERSION: 8
           PROFILE: spark2
-          TAG: latest
-          RELEASE_TAG_SUFFIX: ''
+          TAG: latest-spark2
+          RELEASE_TAG_SUFFIX: '-spark2'
         - SPARK_VERSION: 3.0.3
           JAVA_VERSION: 11
           PROFILE: spark3
-          TAG: latest-spark3
-          RELEASE_TAG_SUFFIX: '-spark3'
+          TAG: latest
+          RELEASE_TAG_SUFFIX: ''
     steps:
       - uses: actions/checkout@v2.3.4
       - name: Set up JDK ${{ matrix.JAVA_VERSION }}
