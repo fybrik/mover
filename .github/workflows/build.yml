@@ -50,7 +50,7 @@ jobs:
       - name: Build and test jars
         run: mvn -B package -Plocal-to-ghcr -P${{ matrix.PROFILE }}
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v2.1.0
+        uses: codecov/codecov-action@v3
         env:
           SPARK_VERSION: ${{ matrix.SPARK_VERSION }}
         with:
