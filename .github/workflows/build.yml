@@ -31,14 +31,14 @@ jobs:
           TAG: latest
           RELEASE_TAG_SUFFIX: ''
     steps:
-      - uses: actions/checkout@v2.4.0
+      - uses: actions/checkout@v3.0.2
       - name: Set up JDK ${{ matrix.JAVA_VERSION }}
         uses: actions/setup-java@v2
         with:
           distribution: 'adopt'
           java-version: ${{ matrix.JAVA_VERSION }}
       - name: Cache Maven packages
-        uses: actions/cache@v2.1.7
+        uses: actions/cache@v3.0.2
         with:
           path: |
             docker_images
