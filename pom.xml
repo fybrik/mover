@@ -22,7 +22,7 @@
 	<properties>
 		<scala.compat.version>2.12</scala.compat.version>
 		<scala.minor.version>13</scala.minor.version>
-		<scala.version>${scala.compat.version}.${scala.minor.version}</scala.version>
+		<scala.version>2.13.8</scala.version>
 		<slf4j.version>1.7.36</slf4j.version>
 		<kafka.version>2.2.1</kafka.version>
 		<confluent.version>5.2.2</confluent.version>
