@@ -61,7 +61,7 @@ docker network connect kind kind-registry
 ```
 
 ### Building image and pushing to _kind_
-Spark 2.4 base
+Spark 2.4 base (deprecated)
 ```
 docker build -t spark-base:2.4.8 -f src/main/docker/spark/spark2.Dockerfile src/main/docker/spark
 mvn package jib:dockerBuild -DskipTests -Plocal-registry -Pspark2
