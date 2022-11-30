@@ -31,14 +31,14 @@ jobs:
           TAG: latest
           RELEASE_TAG_SUFFIX: ''
     steps:
-      - uses: actions/checkout@v3.0.2
+      - uses: actions/checkout@v3.1.0
       - name: Set up JDK ${{ matrix.JAVA_VERSION }}
         uses: actions/setup-java@v3
         with:
           distribution: 'adopt'
           java-version: ${{ matrix.JAVA_VERSION }}
       - name: Cache Maven packages
-        uses: actions/cache@v3.0.7
+        uses: actions/cache@v3.0.11
         with:
           path: |
             docker_images
@@ -48,9 +48,9 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}-docker${{ hashFiles('src/main/docker/spark/*') }}-${{ matrix.PROFILE }}
 #          restore-keys: ${{ runner.os }}-m2
       - name: Build and test jars
-        run: mvn -B package -Plocal-to-ghcr -P${{ matrix.PROFILE }}
+        run: mvn -X -B package -Plocal-to-ghcr -P${{ matrix.PROFILE }}
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3.1.0
+        uses: codecov/codecov-action@v3.1.1
         env:
           SPARK_VERSION: ${{ matrix.SPARK_VERSION }}
         with:
