@@ -24,8 +24,8 @@
 		<scala.minor.version>13</scala.minor.version>
 		<scala.version>${scala.compat.version}.${scala.minor.version}</scala.version>
 		<slf4j.version>2.0.3</slf4j.version>
-		<kafka.version>3.3.1</kafka.version>
-		<confluent.version>5.2.2</confluent.version>
+		<kafka.version>2.2.1</kafka.version>
+		<confluent.version>7.3.0</confluent.version>
 		<abris.version>6.3.0</abris.version>
 		<spark.version>3.3.1</spark.version>
 		<hadoop.version>3.3.4</hadoop.version>
@@ -35,6 +35,8 @@
 		<kubernets.client>4.9.2</kubernets.client>
 		<jacoco.plugin.version>0.8.6</jacoco.plugin.version>
 		<testcontainers.version>0.40.10</testcontainers.version>
+		<mockwebserver.version>4.10.0</mockwebserver.version>
+  		<okhttp3.version>4.10.0</okhttp3.version>
 
 		<base.image>docker://spark-base:${spark.version}</base.image>
 		<docker.repository>${project.artifactId}</docker.repository>
@@ -275,6 +277,12 @@
 			<artifactId>mockwebserver</artifactId>
 			<version>4.10.0</version>
 			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.squareup.okhttp3</groupId>
+			<artifactId>okhttp</artifactId>
+			<version>4.10.0</version>
 		</dependency>
 
 		<dependency>
