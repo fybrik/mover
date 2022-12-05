@@ -38,7 +38,6 @@
 		<mockwebserver.version>4.10.0</mockwebserver.version>
   		<okhttp3.version>4.10.0</okhttp3.version>
 
-
 		<base.image>docker://spark-base:${spark.version}</base.image>
 		<docker.repository>${project.artifactId}</docker.repository>
 		<image.label>${project.version}</image.label>
