@@ -47,8 +47,10 @@ jobs:
             ~/.sbt
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}-docker${{ hashFiles('src/main/docker/spark/*') }}-${{ matrix.PROFILE }}
 #          restore-keys: ${{ runner.os }}-m2
+      - name: test mvn
+        run: mvn test
       - name: Build and test jars
-        run: mvn package -Plocal-to-ghcr -P${{ matrix.PROFILE }}
+        run: mvn -B package -Plocal-to-ghcr -P${{ matrix.PROFILE }}
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3.1.1
         env:
