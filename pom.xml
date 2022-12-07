@@ -506,7 +506,7 @@
 						<arg>-unchecked</arg>
 						<arg>-deprecation</arg>
 						<arg>-feature</arg>
-						<arg>-Yno-adapted-args</arg>
+						<!-- <arg>-Yno-adapted-args</arg> -->
 <!--						<arg>-target:jvm-${java.version}</arg>-->
 <!--						<arg>-Xlog-implicits</arg>-->
 					</args>
