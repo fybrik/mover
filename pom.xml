@@ -101,7 +101,7 @@
 				<activeByDefault>true</activeByDefault>
 			</activation>
 			<properties>
-				<spark.version>3.3.0</spark.version>
+				<spark.version>3.0.3</spark.version>
 				<java.version>11</java.version>
 				<kubernets.client>4.9.2</kubernets.client>
 				<image.label>latest</image.label>
