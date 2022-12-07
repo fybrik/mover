@@ -35,8 +35,8 @@
 		<kubernets.client>4.9.2</kubernets.client>
 		<jacoco.plugin.version>0.8.6</jacoco.plugin.version>
 		<testcontainers.version>0.40.10</testcontainers.version>
-		<!-- <mockwebserver.version>4.10.0</mockwebserver.version>
-  		<okhttp3.version>4.10.0</okhttp3.version> -->
+		<mockwebserver.version>4.10.0</mockwebserver.version>
+  		<okhttp3.version>4.10.0</okhttp3.version>
 
 		<base.image>docker://spark-base:${spark.version}</base.image>
 		<docker.repository>${project.artifactId}</docker.repository>
