@@ -256,7 +256,7 @@
 
 		<dependency>
     		<groupId>org.apache.spark</groupId>
-    		<artifactId>spark-avro_2.13</artifactId>
+    		<artifactId>spark-avro_2.12</artifactId>
     		<version>3.0.3</version>
 		</dependency>
 
