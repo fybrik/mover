@@ -25,7 +25,7 @@ jobs:
         #   PROFILE: spark2
         #   TAG: latest-spark2
         #   RELEASE_TAG_SUFFIX: '-spark2'
-        - SPARK_VERSION: 3.0.3
+        - SPARK_VERSION: 3.3.0
           JAVA_VERSION: 11
           PROFILE: spark3
           TAG: latest
