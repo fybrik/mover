@@ -20,11 +20,11 @@ jobs:
     strategy:
       matrix:
         include:
-        - SPARK_VERSION: 2.4.8
-          JAVA_VERSION: 8
-          PROFILE: spark2
-          TAG: latest-spark2
-          RELEASE_TAG_SUFFIX: '-spark2'
+        # - SPARK_VERSION: 2.4.8
+        #   JAVA_VERSION: 8
+        #   PROFILE: spark2
+        #   TAG: latest-spark2
+        #   RELEASE_TAG_SUFFIX: '-spark2'
         - SPARK_VERSION: 3.0.3
           JAVA_VERSION: 11
           PROFILE: spark3
