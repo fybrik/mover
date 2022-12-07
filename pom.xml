@@ -254,11 +254,11 @@
 			<version>${avro.version}</version>
 		</dependency> -->
 
-		<!-- <dependency>
+		<dependency>
     		<groupId>org.apache.spark</groupId>
     		<artifactId>spark-avro_2.13</artifactId>
-    		<version>3.3.0</version>
-		</dependency> -->
+    		<version>3.0.3</version>
+		</dependency>
 
 		<!-- CAREFUL! This messy dependency includes a log4j.properties file! -->
 		<dependency> <!-- ABRiS dependency -->
