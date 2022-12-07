@@ -85,7 +85,7 @@
 			</properties>
 		</profile>
 
-		<profile>
+		<!-- <profile>
 			<id>spark2</id>
 			<properties>
 				<spark.version>2.4.8</spark.version>
@@ -94,9 +94,12 @@
 				<image.label>latest-spark2</image.label>
 				<jacoco.plugin.version>0.7.4.201502262128</jacoco.plugin.version>
 			</properties>
-		</profile>
+		</profile> -->
 		<profile>
 			<id>spark3</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
 			<properties>
 				<spark.version>3.0.3</spark.version>
 				<java.version>11</java.version>
