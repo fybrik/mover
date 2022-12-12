@@ -23,18 +23,20 @@
 		<scala.compat.version>2.12</scala.compat.version>
 		<scala.minor.version>13</scala.minor.version>
 		<scala.version>${scala.compat.version}.${scala.minor.version}</scala.version>
-		<slf4j.version>1.7.36</slf4j.version>
+		<slf4j.version>2.0.0</slf4j.version>
 		<kafka.version>2.2.1</kafka.version>
-		<confluent.version>5.2.2</confluent.version>
-		<abris.version>4.2.0</abris.version>
-		<spark.version>3.3.0</spark.version>
+		<confluent.version>6.2.0</confluent.version>
+		<abris.version>6.3.0</abris.version>
+		<spark.version>3.0.3</spark.version>
 		<hadoop.version>2.7.3</hadoop.version>
-		<stocator.version>1.1.4</stocator.version>
+		<stocator.version>1.1.5</stocator.version>
 		<avro.version>1.11.1</avro.version>
 		<java.version>11</java.version>
 		<kubernets.client>4.9.2</kubernets.client>
 		<jacoco.plugin.version>0.8.6</jacoco.plugin.version>
 		<testcontainers.version>0.40.10</testcontainers.version>
+		<mockwebserver.version>4.10.0</mockwebserver.version>
+  		<okhttp3.version>4.10.0</okhttp3.version>
 
 		<base.image>docker://spark-base:${spark.version}</base.image>
 		<docker.repository>${project.artifactId}</docker.repository>
@@ -83,7 +85,7 @@
 			</properties>
 		</profile>
 
-		<profile>
+		<!-- <profile>
 			<id>spark2</id>
 			<properties>
 				<spark.version>2.4.8</spark.version>
@@ -92,11 +94,14 @@
 				<image.label>latest-spark2</image.label>
 				<jacoco.plugin.version>0.7.4.201502262128</jacoco.plugin.version>
 			</properties>
-		</profile>
+		</profile> -->
 		<profile>
 			<id>spark3</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
 			<properties>
-				<spark.version>3.0.3</spark.version>
+				<spark.version>3.3.0</spark.version>
 				<java.version>11</java.version>
 				<kubernets.client>4.9.2</kubernets.client>
 				<image.label>latest</image.label>
@@ -130,11 +135,11 @@
 			<version>${slf4j.version}</version>
 		</dependency>
 
-		<dependency>
+		<!-- <dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-log4j12</artifactId>
 			<version>${slf4j.version}</version>
-		</dependency>
+		</dependency> -->
 
 		<dependency>
 			<groupId>com.ibm.cos</groupId>
@@ -242,11 +247,17 @@
 			<artifactId>kafka-rest</artifactId>
 			<version>${confluent.version}</version>
 		</dependency>
-
+<!-- 
 		<dependency>
 			<groupId>org.apache.avro</groupId>
 			<artifactId>avro</artifactId>
 			<version>${avro.version}</version>
+		</dependency> -->
+
+		<dependency>
+    		<groupId>org.apache.spark</groupId>
+    		<artifactId>spark-avro_2.12</artifactId>
+    		<version>3.0.3</version>
 		</dependency>
 
 		<!-- CAREFUL! This messy dependency includes a log4j.properties file! -->
@@ -273,8 +284,14 @@
 		<dependency>
 			<groupId>com.squareup.okhttp3</groupId>
 			<artifactId>mockwebserver</artifactId>
-			<version>3.14.9</version>
+			<version>4.10.0</version>
 			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.squareup.okhttp3</groupId>
+			<artifactId>okhttp</artifactId>
+			<version>4.10.0</version>
 		</dependency>
 
 		<dependency>
@@ -283,6 +300,20 @@
 			<version>2.9.10</version>
 			<scope>test</scope>
 		</dependency>
+
+		<!-- <dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-core</artifactId>
+			<version>2.6.5</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+			<version>2.6.5</version>
+			<scope>test</scope>
+		</dependency> -->
 
 		<dependency>
 			<groupId>com.dimafeng</groupId>

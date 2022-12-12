@@ -20,18 +20,18 @@ jobs:
     strategy:
       matrix:
         include:
-        - SPARK_VERSION: 2.4.8
-          JAVA_VERSION: 8
-          PROFILE: spark2
-          TAG: latest-spark2
-          RELEASE_TAG_SUFFIX: '-spark2'
-        - SPARK_VERSION: 3.0.3
+        # - SPARK_VERSION: 2.4.8
+        #   JAVA_VERSION: 8
+        #   PROFILE: spark2
+        #   TAG: latest-spark2
+        #   RELEASE_TAG_SUFFIX: '-spark2'
+        - SPARK_VERSION: 3.3.0
           JAVA_VERSION: 11
           PROFILE: spark3
           TAG: latest
           RELEASE_TAG_SUFFIX: ''
     steps:
-      - uses: actions/checkout@v3.0.2
+      - uses: actions/checkout@v3.1.0
       - name: Set up JDK ${{ matrix.JAVA_VERSION }}
         uses: actions/setup-java@v3
         with:
@@ -47,10 +47,12 @@ jobs:
             ~/.sbt
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}-docker${{ hashFiles('src/main/docker/spark/*') }}-${{ matrix.PROFILE }}
 #          restore-keys: ${{ runner.os }}-m2
+      # - name: test mvn
+      #   run: mvn test
       - name: Build and test jars
         run: mvn -B package -Plocal-to-ghcr -P${{ matrix.PROFILE }}
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3.1.0
+        uses: codecov/codecov-action@v3.1.1
         env:
           SPARK_VERSION: ${{ matrix.SPARK_VERSION }}
         with:
