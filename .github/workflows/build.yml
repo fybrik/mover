@@ -31,7 +31,7 @@ jobs:
           TAG: latest
           RELEASE_TAG_SUFFIX: ''
     steps:
-      - uses: actions/checkout@v3.0.2
+      - uses: actions/checkout@v3.2.0
       - name: Set up JDK ${{ matrix.JAVA_VERSION }}
         uses: actions/setup-java@v3
         with:
